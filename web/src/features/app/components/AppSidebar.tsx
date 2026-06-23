@@ -78,7 +78,7 @@ export function AppSidebar() {
         <SidebarContent className="flex-1">
           <SidebarGroup>
             <SidebarGroupLabel className="flex items-center justify-between">
-              <span>Fivemanage Lite ({version.data?.current || "..."})</span>
+              <span>Hivemanage Lite ({version.data?.current || "..."})</span>
               {version.data?.update_available && (
                 <span
                   className="flex h-2 w-2 rounded-full bg-blue-600"

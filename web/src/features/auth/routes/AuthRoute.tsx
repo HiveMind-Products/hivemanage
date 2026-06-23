@@ -26,10 +26,10 @@ export const AuthRoute: React.FC = () => {
           <div className="flex flex-col items-center mb-8">
             <img
               src={logoSrc}
-              alt="Fivemanage Logo"
+              alt="Hivemanage Logo"
               className="w-55 h-10 mb-4 drop-shadow-lg"
             />
-            <h1 className="text-3xl font-bold mb-1 text-center">Sign in to Fivemanage Lite</h1>
+            <h1 className="text-3xl font-bold mb-1 text-center">Sign in to Hivemanage Lite</h1>
           </div>
           <AuthForm />
         </div>
