@@ -3,7 +3,9 @@ package publicapi
 import (
 	"net/http"
 	"os"
+	"strings"
 
+	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/file"
@@ -12,71 +14,44 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// DRY they said
 func registerMediaApi(group *echo.Group, fileService *file.Service, tokenService *token.Service, cache *cache.Cache) {
-	group.POST("/image", func(c echo.Context) error {
-		var err error
-		ctx := c.Request().Context()
+	handle := func(fileType string) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ctx := c.Request().Context()
 
-		file, header, err := httputil.File(c.Request(), "image")
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-			})
+			orgId, err := auth.CurrentOrgId(c)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, echo.Map{"error": "Unauthorized: " + err.Error()})
+			}
+
+			f, header, err := httputil.File(c.Request(), fileType)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+			}
+
+			key, err := fileService.CreateFile(ctx, orgId, f, header)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+			}
+
+			bucket := strings.TrimRight(os.Getenv("BUCKET_DOMAIN"), "/")
+			return c.JSON(http.StatusOK, echo.Map{"url": bucket + "/" + key})
 		}
+	}
 
-		key, err := fileService.CreateFile(ctx, "", file, header)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err)
-		}
+	group.POST("/image", handle("image"),
+		middleware.TokenAuth(tokenService, cache),
+		middleware.ValidateMime("image", middleware.WhitelistedImageMIME))
 
-		bucket := os.Getenv("BUCKET_DOMAIN")
-		url := bucket + "/" + key
+	group.POST("/video", handle("video"),
+		middleware.TokenAuth(tokenService, cache),
+		middleware.ValidateMime("video", middleware.WhitelistedVideoMIME))
 
-		return c.JSON(200, echo.Map{"url": url})
-	}, middleware.TokenAuth(tokenService, cache))
+	group.POST("/audio", handle("audio"),
+		middleware.TokenAuth(tokenService, cache),
+		middleware.ValidateMime("audio", middleware.WhitelistedAudioMIME))
 
-	group.POST("/video", func(c echo.Context) error {
-		var err error
-		ctx := c.Request().Context()
-
-		file, header, err := httputil.File(c.Request(), "video")
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-			})
-		}
-
-		key, err := fileService.CreateFile(ctx, "", file, header)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err)
-		}
-
-		bucket := os.Getenv("BUCKET_DOMAIN")
-		url := bucket + "/" + key
-
-		return c.JSON(200, echo.Map{"url": url})
-	})
-
-	group.POST("/audio", func(c echo.Context) error {
-		var err error
-		ctx := c.Request().Context()
-
-		file, header, err := httputil.File(c.Request(), "audio")
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-			})
-		}
-
-		key, err := fileService.CreateFile(ctx, "", file, header)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err)
-		}
-
-		bucket := os.Getenv("BUCKET_DOMAIN")
-		url := bucket + "/" + key
-
-		return c.JSON(200, echo.Map{"url": url})
-	})
+	group.POST("/file", handle("file"),
+		middleware.TokenAuth(tokenService, cache),
+		middleware.ValidateMime("file", nil))
 }
