@@ -13,7 +13,7 @@ RUN pnpm fetch
 
 COPY web .
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store CI=true pnpm install --frozen-lockfile --config.confirmModulesPurge=false
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store CI=true pnpm install --frozen-lockfile
 RUN pnpm run build
 
 
