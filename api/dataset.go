@@ -3,17 +3,22 @@ package api
 import "time"
 
 type Dataset struct {
-	ID             string `json:"id,omitempty" validate:"required"`
-	Name           string `json:"name" validate:"required"`
-	Description    string `json:"description" validate:"required"`
-	RetentionDays  int    `json:"retentionDays" validate:"required"`
-	OrganizationID string `json:"organizationId" validate:"required"`
+	ID             string `json:"id,omitempty"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	RetentionDays  int    `json:"retentionDays"`
+	OrganizationID string `json:"organizationId"`
+}
+
+type CreateDatasetRequest struct {
+	Name          string `json:"name" validate:"required,min=1,max=255"`
+	Description   string `json:"description" validate:"max=255"`
+	RetentionDays int    `json:"retentionDays" validate:"required,min=1,max=365"`
 }
 
 type DatasetField struct {
 	Field string `json:"field"`
-	// Type is either "String" or "Numeric"
-	Type string `json:"type"`
+	Type  string `json:"type"`
 }
 
 type DatasetLog struct {
@@ -39,9 +44,8 @@ type ListLogsSchema struct {
 	FromDate       string `json:"fromDate"`
 	ToDate         string `json:"toDate"`
 	Metadata       string `json:"metadata"`
-	// we convert this to a filter object for the querybuilder
-	Filter string `json:"filter"`
-	Cursor int    `json:"cursor"`
+	Filter         string `json:"filter"`
+	Cursor         int    `json:"cursor"`
 }
 
 type DatasetFilter struct {

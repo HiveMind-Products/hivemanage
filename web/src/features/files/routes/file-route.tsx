@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { useFile } from "../api/use-file";
+import { useFile, useFileURL } from "../api/use-file";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { Link } from "react-router";
 import { FileViewer } from "../components/file/file-viewer";
 import { FileHeader } from "../components/file/file-header";
-import { useConfig } from "@/features/app/api/system-api";
 
 function formatBytes(bytes: number, decimals = 2) {
   if (!+bytes) return "0 Bytes";
@@ -36,7 +35,7 @@ export default function FileRoute() {
   }>();
 
   const { data, isPending } = useFile(organizationId, fileId);
-  const { data: config } = useConfig();
+  const { data: signedURL } = useFileURL(organizationId, fileId);
 
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
@@ -93,8 +92,8 @@ export default function FileRoute() {
     );
   }
 
-  const fileUrl = `${config?.bucket_domain}/${data.key}`;
-  const fileName = data.key.split("/").pop() || data.key;
+  const fileUrl = signedURL?.url ?? "";
+  const fileName = data.originalName || data.key.split("/").pop() || data.key;
 
   const isImage = data.type === "image";
   const isVideo = data.type === "video";

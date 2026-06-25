@@ -20,7 +20,7 @@ func (r *handler) listMembersHandler(c echo.Context) error {
 	cc := c.(*appctx.Context)
 	ctx := cc.Request().Context()
 
-	id := cc.Param("id")
+	id := cc.Param("organizationId")
 
 	members, err := r.memberService.ListMembers(ctx, id)
 	if err != nil {

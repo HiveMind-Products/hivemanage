@@ -1,0 +1,3 @@
+./hmac.go
+./nano.go
+./password.go

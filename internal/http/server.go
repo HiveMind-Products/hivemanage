@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/fivemanage/lite/internal/http/internalapi"
@@ -28,7 +29,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-//go:embed dist/*
+//go:embed dist
 var webContent embed.FS
 
 type Server struct {
@@ -48,13 +49,26 @@ func NewServer(
 	memcache *cache.Cache,
 ) *echo.Echo {
 	app := echo.New()
-	app.Debug = true
+	app.Debug = os.Getenv("ENV") == "dev"
 
 	app.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOriginFunc: func(origin string) (bool, error) {
-			return true, nil
+		AllowOriginFunc: allowedOrigin,
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+			"X-CSRF-Token",
+			"X-Fivemanage-Dataset",
 		},
-		AllowHeaders:     []string{"*"},
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
 		AllowCredentials: true,
 	}))
 
@@ -100,4 +114,19 @@ func getFileSystem(path string) http.FileSystem {
 	slog.Info(fmt.Sprintf("serving static files from %s", path))
 
 	return http.FS(fs)
+}
+
+func allowedOrigin(origin string) (bool, error) {
+	if origin == "" {
+		return true, nil
+	}
+
+	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	for _, allowed := range allowedOrigins {
+		if strings.TrimSpace(allowed) == origin {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

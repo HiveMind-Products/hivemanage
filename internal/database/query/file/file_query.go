@@ -20,6 +20,7 @@ func Create(ctx context.Context, db *bun.DB, file *database.Asset) (bun.Tx, erro
 
 	_, err = tx.NewInsert().Model(file).Exec(ctx)
 	if err != nil {
+		_ = tx.Rollback()
 		return tx, err
 	}
 
@@ -104,4 +105,9 @@ func FindTotalStorageSize(ctx context.Context, db *bun.DB, organizationID string
 	}
 
 	return size, nil
+}
+
+func Delete(ctx context.Context, db *bun.DB, organizationID, id string) error {
+	_, err := db.NewDelete().Model((*database.Asset)(nil)).Where("organization_id = ?", organizationID).Where("id = ?", id).Exec(ctx)
+	return err
 }

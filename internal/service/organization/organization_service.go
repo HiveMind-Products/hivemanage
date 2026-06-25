@@ -72,27 +72,27 @@ func (r *Service) CreateOrganization(ctx context.Context, data *api.CreateOrgani
 		ID:   orgId,
 	}
 
-	orgTx, err := organizationquery.Create(ctx, r.db, dbOrganization)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err := orgTx.Commit(); err != nil {
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if _, err := tx.NewInsert().Model(dbOrganization).Exec(ctx); err != nil {
 		return nil, err
 	}
 
-	memberTx, err := organizationquery.CreateMember(ctx, r.db, &database.OrganizationMember{
+	if _, err := tx.NewInsert().Model(&database.OrganizationMember{
 		Role:           "ADMIN",
 		OrganizationID: dbOrganization.ID,
 		UserID:         userID,
-	})
-	if err != nil {
+	}).Exec(ctx); err != nil {
 		return nil, err
 	}
 
-	if err := memberTx.Commit(); err != nil {
-		if err := orgTx.Rollback(); err != nil {
-			return nil, err
-		}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
@@ -118,8 +118,8 @@ func (r *Service) FindOrganizationByID(ctx context.Context, ID string) (*api.Org
 	return organization, nil
 }
 
-func (r *Service) ListOrganizations(ctx context.Context) ([]*api.Organization, error) {
-	dbOrganizations, err := organizationquery.List(ctx, r.db)
+func (r *Service) ListOrganizations(ctx context.Context, userID int64) ([]*api.Organization, error) {
+	dbOrganizations, err := organizationquery.ListByUser(ctx, r.db, userID)
 	if err != nil {
 		return nil, err
 	}

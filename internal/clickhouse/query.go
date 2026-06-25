@@ -11,6 +11,9 @@ import (
 )
 
 func (c *Client) QueryLog(ctx context.Context, organizationID, datasetID, logID string) (*api.DatasetLog, error) {
+	if c == nil || !c.Enabled || c.conn == nil {
+		return nil, ErrUnavailable
+	}
 	chCtx := clickhouse.Context(ctx, clickhouse.WithParameters(clickhouse.Parameters{
 		"TeamId":    organizationID,
 		"DatasetId": datasetID,
@@ -62,8 +65,14 @@ func (c *Client) QueryLog(ctx context.Context, organizationID, datasetID, logID 
 }
 
 func (c *Client) QueryLogs(ctx context.Context, organizationID, datasetID string, startTime, endTime time.Time, filter api.DatasetFilter, cursor int) ([]api.DatasetLog, error) {
+	if c == nil || !c.Enabled || c.conn == nil {
+		return nil, ErrUnavailable
+	}
 	qb := querybuilder.New().Filter(filter).WithDateRange(startTime, endTime)
-	query, args := qb.Build(organizationID, datasetID)
+	query, args, err := qb.Build(organizationID, datasetID)
+	if err != nil {
+		return nil, err
+	}
 
 	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
@@ -108,6 +117,9 @@ func (c *Client) QueryLogs(ctx context.Context, organizationID, datasetID string
 }
 
 func (r *Client) QueryLogFields(ctx context.Context, organizationID, datasetID string) ([]LogField, error) {
+	if r == nil || !r.Enabled || r.conn == nil {
+		return nil, ErrUnavailable
+	}
 	chCtx := clickhouse.Context(ctx, clickhouse.WithParameters(clickhouse.Parameters{
 		"TeamId":    organizationID,
 		"DatasetId": datasetID,
@@ -150,6 +162,9 @@ func (r *Client) QueryLogFields(ctx context.Context, organizationID, datasetID s
 }
 
 func (r *Client) QueryTotalLogs(ctx context.Context, organizationID, datasetID string) (int, error) {
+	if r == nil || !r.Enabled || r.conn == nil {
+		return 0, ErrUnavailable
+	}
 	chCtx := clickhouse.Context(ctx, clickhouse.WithParameters(clickhouse.Parameters{
 		"TeamId":    organizationID,
 		"DatasetId": datasetID,
@@ -165,6 +180,9 @@ func (r *Client) QueryTotalLogs(ctx context.Context, organizationID, datasetID s
 }
 
 func (r *Client) QueryTotalLogsByOrg(ctx context.Context, organizationID string) (int, error) {
+	if r == nil || !r.Enabled || r.conn == nil {
+		return 0, ErrUnavailable
+	}
 	chCtx := clickhouse.Context(ctx, clickhouse.WithParameters(clickhouse.Parameters{
 		"TeamId": organizationID,
 	}))

@@ -1,0 +1,14 @@
+./alter_table.go
+./append.go
+./array.go
+./array_parser.go
+./dialect.go
+./elem.go
+./hstore.go
+./hstore_parser.go
+./hstore_scan.go
+./inspector.go
+./parser.go
+./range.go
+./sqltype.go
+./version.go

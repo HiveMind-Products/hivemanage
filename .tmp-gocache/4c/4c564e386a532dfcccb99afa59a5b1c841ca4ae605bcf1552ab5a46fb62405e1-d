@@ -1,0 +1,8 @@
+./admin.go
+./auth.go
+./dataset.go
+./file.go
+./log.go
+./member.go
+./organization.go
+./token.go

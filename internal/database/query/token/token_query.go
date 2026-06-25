@@ -41,8 +41,8 @@ func List(ctx context.Context, db *bun.DB, organizationID string) ([]database.To
 	return tokens, nil
 }
 
-func Delete(ctx context.Context, db *bun.DB, tokenID int64) error {
-	_, err := db.NewDelete().Model((*database.Token)(nil)).Where("id = ?", tokenID).Exec(ctx)
+func Delete(ctx context.Context, db *bun.DB, organizationID string, tokenID int64) error {
+	_, err := db.NewDelete().Model((*database.Token)(nil)).Where("organization_id = ?", organizationID).Where("id = ?", tokenID).Exec(ctx)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,11 @@
 package organization
 
 import (
+	"errors"
+	"net/http"
+
 	"github.com/fivemanage/lite/api"
+	"github.com/fivemanage/lite/internal/clickhouse"
 	"github.com/fivemanage/lite/internal/http/appctx"
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
@@ -52,7 +56,8 @@ func (r *handler) listOrganizationsHandler(c echo.Context) error {
 	cc := c.(*appctx.Context)
 	ctx := cc.Request().Context()
 
-	organizations, err := r.organizationService.ListOrganizations(ctx)
+	user := cc.User()
+	organizations, err := r.organizationService.ListOrganizations(ctx, user.ID)
 	if err != nil {
 		logrus.WithError(err).Error("failed to list organizations")
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
@@ -74,7 +79,7 @@ func (r *handler) getOrganizationHandler(c echo.Context) error {
 	cc := c.(*appctx.Context)
 	ctx := cc.Request().Context()
 
-	id := cc.Param("id")
+	id := cc.Param("organizationId")
 
 	organization, err := r.organizationService.FindOrganizationByID(ctx, id)
 	if err != nil {
@@ -98,11 +103,14 @@ func (r *handler) getOrganizationStatsHandler(c echo.Context) error {
 	cc := c.(*appctx.Context)
 	ctx := cc.Request().Context()
 
-	id := cc.Param("id")
+	id := cc.Param("organizationId")
 
 	stats, err := r.organizationService.GetStats(ctx, id)
 	if err != nil {
 		logrus.WithError(err).Error("failed to get organization stats")
+		if errors.Is(err, clickhouse.ErrUnavailable) {
+			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
+		}
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 

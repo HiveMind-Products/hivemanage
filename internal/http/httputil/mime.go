@@ -1,7 +1,9 @@
 package httputil
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"strings"
 
@@ -9,12 +11,11 @@ import (
 )
 
 func GetMimeDetails(fileHeader *multipart.FileHeader, file multipart.File) (string, string, string, error) {
-	var err error
 	var fileType string
 
 	buf := make([]byte, 3072)
-	_, err = file.Read(buf)
-	if err != nil {
+	_, err := file.Read(buf)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return "", "", "", fmt.Errorf("error reading file: %w", err)
 	}
 

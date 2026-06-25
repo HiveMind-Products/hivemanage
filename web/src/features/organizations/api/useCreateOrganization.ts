@@ -1,8 +1,9 @@
 import { Organization } from "@/typings/organizations";
 import { ApiError, fetchApi } from "@/utils/http-util";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function useCreateOrganization() {
+  const queryClient = useQueryClient();
   const { mutate, isPending } = useMutation({
     mutationFn: async (params: Omit<Organization, "id">) => {
       try {
@@ -16,6 +17,7 @@ export function useCreateOrganization() {
         }
       }
     },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["organizations"] }); },
   });
 
   return { mutate, isPending };

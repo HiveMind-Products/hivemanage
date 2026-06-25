@@ -5,17 +5,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type handler struct {
-	organizationService *organization.Service
-}
+type handler struct{ organizationService *organization.Service }
 
 func RegisterRoutes(group *echo.Group, organizationService *organization.Service) {
-	h := handler{
-		organizationService: organizationService,
-	}
-
+	h := handler{organizationService: organizationService}
 	group.POST("/organization", h.createOrganizationHandler)
 	group.GET("/organization", h.listOrganizationsHandler)
-	group.GET("/organization/:id", h.getOrganizationHandler)
-	group.GET("/organization/:id/stats", h.getOrganizationStatsHandler)
+	group.GET("/organization/:organizationId", h.getOrganizationHandler)
+	group.GET("/organization/:organizationId/stats", h.getOrganizationStatsHandler)
 }

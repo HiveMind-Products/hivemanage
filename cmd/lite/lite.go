@@ -85,14 +85,20 @@ var rootCmd = &cobra.Command{
 		}
 
 		clickhouseEnabled := shouldInitClickhouse(chConfig.Host)
-		if clickhouseEnabled {
-			clickhouse.AutoMigrate(cmd.Context(), chConfig)
+		clickhouseClient := clickhouse.NewClient(chConfig, clickhouseEnabled)
+		if clickhouseClient.Enabled {
+			if err := clickhouse.AutoMigrate(cmd.Context(), chConfig); err != nil {
+				slog.Warn("failed to run clickhouse migrations; logging will be unavailable", slog.Any("error", err))
+				clickhouseClient.Enabled = false
+			}
 		}
 
-		clickhouseClient := clickhouse.NewClient(chConfig, clickhouseEnabled)
-
 		s3Provider := viper.GetString("s3-provider")
-		storageLayer := storage.New(s3Provider)
+		storageLayer, err := storage.New(s3Provider)
+		if err != nil {
+			slog.Error("failed to initialize storage", slog.Any("error", err))
+			return
+		}
 
 		// im not sure if we need to exit here.
 		// not all uers might want to use this for file uploads

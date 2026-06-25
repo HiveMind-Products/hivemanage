@@ -28,12 +28,13 @@ func Add(
 	systemService *system.Service,
 ) {
 	group.Use(middleware.Session(authService))
+	group.Use(middleware.CSRF())
 
 	authhander.RegisterRoutes(group, authService)
-	tokenhandler.RegisterRoutes(group, tokenService)
+	tokenhandler.RegisterRoutes(group, tokenService, authService)
 	organizationhandler.RegisterRoutes(group, organizationService)
-	memberhandler.RegisterRoutes(group, memberService)
-	datasethandler.RegisterRoutes(group, datasetService)
-	registerStorageApi(group, fileService)
+	memberhandler.RegisterRoutes(group, memberService, authService)
+	datasethandler.RegisterRoutes(group, datasetService, authService)
+	registerStorageApi(group, fileService, authService)
 	registerSystemApi(group, systemService)
 }

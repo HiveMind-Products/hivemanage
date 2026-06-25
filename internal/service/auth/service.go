@@ -275,6 +275,22 @@ func (r *Service) IsOrganizationMember(ctx context.Context, userID int64, organi
 	return true, nil
 }
 
+func (r *Service) IsOrganizationAdmin(ctx context.Context, userID int64, organizationID string) (bool, error) {
+	member := new(database.OrganizationMember)
+	err := r.db.NewSelect().Model(member).
+		Where("user_id = ? AND organization_id = ?", userID, organizationID).
+		Limit(1).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return member.Role == "ADMIN", nil
+}
+
 func (r *Service) LogoutUser(ctx context.Context, sessionID string) error {
 	_, err := r.db.NewDelete().Model((*database.Session)(nil)).Where("id = ?", sessionID).Exec(ctx)
 	return err
@@ -288,6 +304,19 @@ func (r *Service) CreateSessionCookie(sessionID string) *http.Cookie {
 		Secure:   isProduction,
 		SameSite: http.SameSiteLaxMode,
 		HttpOnly: true,
+		Path:     "/",
+		Expires:  time.Now().Add(auth.SessionDuration),
+	}
+}
+
+func (r *Service) CreateCSRFCookie(token string) *http.Cookie {
+	isProduction := os.Getenv("ENV") == "production"
+	return &http.Cookie{
+		Name:     auth.CSRFCookieName,
+		Value:    token,
+		Secure:   isProduction,
+		SameSite: http.SameSiteLaxMode,
+		HttpOnly: false,
 		Path:     "/",
 		Expires:  time.Now().Add(auth.SessionDuration),
 	}

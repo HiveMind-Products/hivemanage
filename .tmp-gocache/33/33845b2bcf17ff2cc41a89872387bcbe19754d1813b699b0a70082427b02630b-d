@@ -1,0 +1,5 @@
+./column.go
+./database.go
+./inspector.go
+./migrator.go
+./table.go

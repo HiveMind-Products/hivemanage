@@ -6,7 +6,6 @@ import (
 	"github.com/uptrace/bun/migrate"
 )
 
-//go:embed *.go
 //go:embed *.sql
 var sqlMigrations embed.FS
 

@@ -1,26 +1,24 @@
 import { Params } from "@/typings/router";
-import { useMutation } from "@tanstack/react-query";
+import { fetchApi } from "@/utils/http-util";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 
 export function useUploadFile() {
   const params = useParams<Params>();
+  const queryClient = useQueryClient();
 
   const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(
-        `/api/dash/storage/${params.organizationId}/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-      if (!response.ok) {
-        throw new Error("File upload failed");
-      }
-      return response.json();
+      return fetchApi<string>(`/api/dash/storage/${params.organizationId}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["storage", params.organizationId] });
     },
   });
 

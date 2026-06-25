@@ -1,0 +1,3 @@
+./client.go
+./migration.go
+./query.go

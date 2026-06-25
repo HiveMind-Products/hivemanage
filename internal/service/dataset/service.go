@@ -26,7 +26,7 @@ func NewService(db *bun.DB, clickhouseClient *clickhouse.Client) *Service {
 	}
 }
 
-func (r *Service) Create(ctx context.Context, orgID string, data api.Dataset) (*api.Dataset, error) {
+func (r *Service) Create(ctx context.Context, orgID string, data api.CreateDatasetRequest) (*api.Dataset, error) {
 	var err error
 
 	datasetID, err := crypt.GeneratePrimaryKey()
@@ -47,10 +47,13 @@ func (r *Service) Create(ctx context.Context, orgID string, data api.Dataset) (*
 		return nil, err
 	}
 
-	data.ID = dbDataset.ID
-	data.OrganizationID = orgID
-
-	return &data, nil
+	return &api.Dataset{
+		ID:             dbDataset.ID,
+		Name:           dbDataset.Name,
+		Description:    dbDataset.Description,
+		RetentionDays:  dbDataset.RetentionDays,
+		OrganizationID: dbDataset.OrganizationID,
+	}, nil
 }
 
 func (r *Service) GetLog(ctx context.Context, organizationID, datasetID, logID string) (*api.DatasetLog, error) {

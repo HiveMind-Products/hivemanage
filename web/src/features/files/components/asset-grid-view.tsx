@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { useConfig } from "@/features/app/api/system-api";
 
 interface AssetGridViewProps {
   assets: Asset[];
@@ -61,9 +60,7 @@ export function AssetGridView({ assets, totalCount }: AssetGridViewProps) {
 }
 
 function AssetCard({ asset }: { asset: Asset }) {
-  const { data: config } = useConfig();
   const type = asset.type;
-  const url = `${config?.bucket_domain}/${asset.key}`;
 
   let Icon = ImageIcon;
   if (type === "video") {
@@ -72,21 +69,13 @@ function AssetCard({ asset }: { asset: Asset }) {
     Icon = FileAudioIcon;
   }
 
-  const filename = asset.key.split("/").pop() || asset.key;
+  const filename = asset.originalName || asset.key.split("/").pop() || asset.key;
 
   return (
     <Card className="overflow-hidden group cursor-pointer hover:border-primary/50 transition-colors py-0 gap-0">
       <Link to={asset.id} className="contents">
         <div className="aspect-video w-full bg-muted flex items-center justify-center relative overflow-hidden">
-          {type === "image" ? (
-            <img
-              src={url}
-              alt={filename}
-              className="object-cover w-full h-full"
-            />
-          ) : (
-            <Icon className="w-10 h-10 text-muted-foreground" />
-          )}
+          <Icon className="w-10 h-10 text-muted-foreground" />
         </div>
         <CardFooter className="p-3 flex items-center justify-between">
           <div className="truncate flex-1">

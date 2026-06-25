@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/fivemanage/lite/api"
+	"github.com/fivemanage/lite/internal/crypt"
 	"github.com/fivemanage/lite/internal/http/appctx"
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
@@ -36,6 +37,12 @@ func (r *handler) getSessionHandler(c echo.Context) error {
 		return cc.JSON(http.StatusUnauthorized, httputil.ErrorResponse("Invalid session"))
 	}
 
+	csrfToken, err := crypt.GenerateSessionID()
+	if err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
+	}
+	cc.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
+
 	return cc.JSON(http.StatusOK, httputil.Response(user))
 }
 
@@ -46,7 +53,7 @@ func (r *handler) getSessionHandler(c echo.Context) error {
 // @Accept       json
 // @Produce      json
 // @Param        login  body      api.LoginRequest  true  "Login Request"
-// @Success      303    {string}  string            "Redirect to /app"
+// @Success      200    {object}  httputil.ResponseData{data=string}
 // @Failure      400    {object}  httputil.ErrorResponseData
 // @Failure      403    {object}  httputil.ErrorResponseData
 // @Router       /dash/auth/login [post]
@@ -74,8 +81,14 @@ func (r *handler) loginHandler(c echo.Context) error {
 	}
 
 	sessionCookie := r.authService.CreateSessionCookie(sessionID)
+	csrfToken, err := crypt.GenerateSessionID()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
+	}
+
 	c.SetCookie(sessionCookie)
-	return c.Redirect(http.StatusSeeOther, "/app")
+	c.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
+	return c.JSON(http.StatusOK, httputil.Response("Login successful"))
 }
 
 // logoutHandler godoc
@@ -104,6 +117,14 @@ func (r *handler) logoutHandler(c echo.Context) error {
 
 	logoutCookie := r.authService.CreateLogoutCookie()
 	cc.SetCookie(logoutCookie)
+	cc.SetCookie(&http.Cookie{
+		Name:     internalauth.CSRFCookieName,
+		Value:    "",
+		HttpOnly: false,
+		Path:     "/",
+		Expires:  logoutCookie.Expires,
+		MaxAge:   -1,
+	})
 
 	// change this dumb ahhh response
 	return cc.JSON(http.StatusOK, httputil.Response("Logout successful"))

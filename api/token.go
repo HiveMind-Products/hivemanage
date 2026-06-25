@@ -1,7 +1,7 @@
 package api
 
 type CreateTokenRequest struct {
-	Identifier     string `json:"identifier"`
+	Identifier     string `json:"identifier" validate:"required,min=1,max=128"`
 	Type           string `json:"type"`
 	OrganizationID string `json:"omitzero"`
 }

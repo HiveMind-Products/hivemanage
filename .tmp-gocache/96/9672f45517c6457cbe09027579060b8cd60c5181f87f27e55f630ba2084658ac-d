@@ -1,0 +1,6 @@
+./auto.go
+./diff.go
+./migration.go
+./migrations.go
+./migrator.go
+./operations.go

@@ -5,7 +5,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 
 export function useTokens(organizationId: string) {
   const result = useSuspenseQuery({
-    queryKey: [QueryKeys.Tokens],
+    queryKey: [QueryKeys.Tokens, organizationId],
     queryFn: async () => {
       try {
         return fetchApi<Token[]>(`/api/dash/${organizationId}/token`);

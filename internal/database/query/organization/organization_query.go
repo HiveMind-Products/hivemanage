@@ -31,14 +31,17 @@ func Find(ctx context.Context, db *bun.DB, ID string) (*database.Organization, e
 	return organization, nil
 }
 
-func List(ctx context.Context, db *bun.DB) ([]database.Organization, error) {
+func ListByUser(ctx context.Context, db *bun.DB, userID int64) ([]database.Organization, error) {
 	var organizations []database.Organization
-
-	err := db.NewSelect().Model(&organizations).Scan(ctx)
+	err := db.NewSelect().
+		Model(&organizations).
+		Join("JOIN organization_member AS om ON om.organization_id = organization.id").
+		Where("om.user_id = ?", userID).
+		Order("organization.name ASC").
+		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	return organizations, nil
 }
 

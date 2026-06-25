@@ -2,7 +2,9 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"time"
 
 	"github.com/fivemanage/lite/pkg/storage/s3"
 	"github.com/spf13/viper"
@@ -11,15 +13,15 @@ import (
 type StorageLayer interface {
 	CreateBucket(context.Context) error
 	UploadFile(context.Context, io.Reader, string, string) error
-	DeleteFile() error
+	DeleteFile(context.Context, string) error
+	SignedURL(context.Context, string, time.Duration) (string, error)
 }
 
-func New(provider string) StorageLayer {
+func New(provider string) (StorageLayer, error) {
 	switch provider {
 	case "s3", "r2", "minio":
 		s3Provider := viper.GetString("s3-provider")
 		return s3.New(s3Provider)
 	}
-
-	return nil
+	return nil, fmt.Errorf("unsupported storage provider: %s", provider)
 }

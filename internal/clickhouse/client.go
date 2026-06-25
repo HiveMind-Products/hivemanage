@@ -18,6 +18,8 @@ type Config struct {
 	Database string
 }
 
+var ErrUnavailable = errors.New("clickhouse unavailable")
+
 type Client struct {
 	conn    driver.Conn
 	Enabled bool
@@ -53,7 +55,9 @@ func NewClient(config *Config, enabled bool) *Client {
 	options := getClickhouseOptions(config)
 	conn, err := connect(options)
 	if err != nil {
-		fmt.Printf("Error connecting to ClickHouse: %v\n", err)
+		slog.Error("error connecting to ClickHouse", slog.Any("error", err))
+		c.Enabled = false
+		return c
 	}
 
 	c.conn = conn
@@ -102,6 +106,10 @@ func connect(options *clickhouse.Options) (driver.Conn, error) {
 }
 
 func (c *Client) BatchWriteLogRows(ctx context.Context, logs []*Log) error {
+	if c == nil || !c.Enabled || c.conn == nil {
+		return ErrUnavailable
+	}
+
 	if len(logs) == 0 {
 		return nil
 	}

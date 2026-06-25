@@ -1,7 +1,11 @@
 package dataset
 
 import (
+	"errors"
+	"net/http"
+
 	"github.com/fivemanage/lite/api"
+	"github.com/fivemanage/lite/internal/clickhouse"
 	"github.com/fivemanage/lite/internal/http/appctx"
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
@@ -24,7 +28,7 @@ func (r *handler) createDatasetHandler(c echo.Context) error {
 	cc := c.(*appctx.Context)
 	ctx := cc.Request().Context()
 
-	var data api.Dataset
+	var data api.CreateDatasetRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
 		logrus.WithError(err).Error("failed to bind and validate token")
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
@@ -85,6 +89,9 @@ func (r *handler) listDatasetFieldsHandler(c echo.Context) error {
 	fields, err := r.datasetService.ListFields(ctx, organizationID, datasetID)
 	if err != nil {
 		logrus.WithError(err).Error("failed to list dataset fields")
+		if errors.Is(err, clickhouse.ErrUnavailable) {
+			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
+		}
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -119,6 +126,9 @@ func (r *handler) queryDatasetLogsHandler(c echo.Context) error {
 	logs, err := r.datasetService.QueryLogs(ctx, organizationID, datasetID, data.FromDate, data.ToDate, data.Filter, data.Cursor)
 	if err != nil {
 		logrus.WithError(err).Error("failed to query dataset logs")
+		if errors.Is(err, clickhouse.ErrUnavailable) {
+			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
+		}
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -155,6 +165,9 @@ func (r *handler) getDatasetLogHandler(c echo.Context) error {
 	log, err := r.datasetService.GetLog(ctx, organizationID, datasetID, logID)
 	if err != nil {
 		logrus.WithError(err).Error("failed to get dataset log")
+		if errors.Is(err, clickhouse.ErrUnavailable) {
+			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
+		}
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 

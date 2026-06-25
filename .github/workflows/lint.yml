@@ -1,57 +1,56 @@
-name: Lint
+name: Lint and Test
 
 on:
   pull_request:
-    types: 
+    types:
       - opened
       - synchronize
 
 jobs:
-  lint_frontend:
-    name: Lint frontend
+  frontend:
+    name: Frontend checks
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./web 
-
+        working-directory: ./web
     strategy:
       matrix:
         node-version: [22]
-
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache-dependency-path: ./web/pnpm-lock.yaml
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run lint
+        run: pnpm lint
+      - name: Run typecheck
+        run: pnpm typecheck
+      - name: Build frontend
+        run: pnpm build
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 10
-
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache-dependency-path: ./web/pnpm-lock.yaml
-        cache: 'pnpm'
-
-    - name: Install dependencies
-      run: pnpm install
-
-    - name: Run lint
-      run: pnpm lint
-
-  lint_backend:
-    name: Lint backend
+  backend:
+    name: Backend checks
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: stable
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        version: v2.1
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run tests
+        run: go test ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1

@@ -9,7 +9,7 @@ export function useListFields(
   datasetId: string | undefined,
 ) {
   return useQuery({
-    queryKey: [QueryKeys.DatasetFields],
+    queryKey: [QueryKeys.DatasetFields, organizationId, datasetId],
     queryFn: async ({ signal }) => {
       try {
         return await fetchApi<Field[]>(

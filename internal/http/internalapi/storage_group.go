@@ -4,17 +4,24 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/http/httputil"
+	"github.com/fivemanage/lite/internal/http/middleware"
+	"github.com/fivemanage/lite/internal/service/auth"
 	"github.com/fivemanage/lite/internal/service/file"
 	"github.com/labstack/echo/v4"
+	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 )
 
-func registerStorageApi(group *echo.Group, fileService *file.Service) {
+func registerStorageApi(group *echo.Group, fileService *file.Service, authService *auth.Service) {
 	h := &storageHandler{fileService: fileService}
+	adminOnly := middleware.OrganizationAdmin(authService)
 	group.GET("/storage/:organizationId", h.listStorageFiles)
 	group.GET("/storage/:organizationId/file/:fileId", h.getStorageFile)
-	group.POST("/storage/:organizationId/upload", h.uploadStorageFile)
+	group.GET("/storage/:organizationId/file/:fileId/url", h.getStorageFileURL)
+	group.POST("/storage/:organizationId/upload", h.uploadStorageFile, echoMiddleware.BodyLimit("500M"), adminOnly)
+	group.DELETE("/storage/:organizationId/file/:fileId", h.deleteStorageFile, adminOnly)
 }
 
 type storageHandler struct {
@@ -99,6 +106,27 @@ func (h *storageHandler) getStorageFile(c echo.Context) error {
 // @Success      200             {object}  httputil.ResponseData{data=string}
 // @Failure      500             {object}  echo.HTTPError
 // @Router       /dash/storage/{organizationId}/upload [post]
+func (h *storageHandler) getStorageFileURL(c echo.Context) error {
+	ctx := c.Request().Context()
+	organizationID := c.Param("organizationId")
+	fileID := c.Param("fileId")
+	url, err := h.fileService.SignedURL(ctx, organizationID, fileID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+	}
+	return c.JSON(http.StatusOK, httputil.Response(&api.AssetURLResponse{URL: url}))
+}
+
+func (h *storageHandler) deleteStorageFile(c echo.Context) error {
+	ctx := c.Request().Context()
+	organizationID := c.Param("organizationId")
+	fileID := c.Param("fileId")
+	if err := h.fileService.DeleteStorageFile(ctx, organizationID, fileID); err != nil {
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+	}
+	return c.JSON(http.StatusOK, httputil.Response(nil))
+}
+
 func (h *storageHandler) uploadStorageFile(c echo.Context) error {
 	ctx := c.Request().Context()
 

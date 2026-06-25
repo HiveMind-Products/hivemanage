@@ -9,7 +9,7 @@ import {
 
 export function useListDatasets(organizationId: string | undefined) {
   return useSuspenseQuery({
-    queryKey: [QueryKeys.Datasets],
+    queryKey: [QueryKeys.Datasets, organizationId],
     queryFn: async ({ signal }) => {
       try {
         return await fetchApi<Dataset[]>(
@@ -44,7 +44,7 @@ export function useCreateDataset(organizationId: string | undefined) {
     },
     onSuccess: (data) => {
       // not sure if this is the best typing I've done
-      queryClient.setQueryData([QueryKeys.Datasets], (oldData: Dataset[]) => {
+      queryClient.setQueryData([QueryKeys.Datasets, organizationId], (oldData: Dataset[]) => {
         if (!oldData) return [data];
 
         return [...oldData, data];

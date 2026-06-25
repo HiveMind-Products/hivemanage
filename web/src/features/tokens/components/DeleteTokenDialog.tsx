@@ -14,6 +14,8 @@ import { useDeleteToken } from "../api/useDeleteToken";
 import { useQueryClient } from "@tanstack/react-query";
 import { QueryKeys } from "@/typings/query";
 import { useTransition } from "react";
+import { useParams } from "react-router";
+import { Params } from "@/typings/router";
 
 interface DeleteTokenDialogProps {
   tokenId: number;
@@ -24,6 +26,7 @@ export function DeleteTokenDialog(props: DeleteTokenDialogProps) {
 
   const [isPending, startTransition] = useTransition();
 
+  const params = useParams<Params>();
   const queryClient = useQueryClient();
   const { mutateAsync } = useDeleteToken();
 
@@ -32,7 +35,7 @@ export function DeleteTokenDialog(props: DeleteTokenDialogProps) {
       await mutateAsync(tokenId);
 
       startTransition(() => {
-        queryClient.invalidateQueries({ queryKey: [QueryKeys.Tokens] });
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.Tokens, params.organizationId] });
       });
     });
   }

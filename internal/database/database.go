@@ -63,6 +63,7 @@ type Asset struct {
 	bun.BaseModel  `bun:"table:asset"`
 	ID             string        `bun:"id,pk"`
 	Key            string        `bun:"key"`
+	OriginalName   string        `bun:"original_name"`
 	Size           int64         `bun:"size"`
 	Type           string        `bun:"type"`
 	CreatedAt      time.Time     `bun:"created_at,nullzero,notnull,default:current_timestamp"`

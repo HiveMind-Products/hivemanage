@@ -244,6 +244,8 @@ export function LogsTable({
   const { data, fetchNextPage, isFetching } = useInfiniteQuery({
     queryKey: [
       "logs",
+      params.organizationId,
+      params.datasetId,
       selectedLevels,
       fromDate,
       toDate,

@@ -26,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Check, Copy, KeyRound } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QueryKeys } from "@/typings/query";
+import { useParams } from "react-router";
+import { Params } from "@/typings/router";
 
 export function CreateTokenDialog() {
   const [open, setOpen] = useState(false);
@@ -41,6 +43,7 @@ export function CreateTokenDialog() {
     resolver: zodResolver(tokenSchema),
   });
 
+  const params = useParams<Params>();
   const queryClient = useQueryClient();
 
   function handleOnSubmit(data: TokenParams) {
@@ -48,7 +51,7 @@ export function CreateTokenDialog() {
       await mutateAsync(data);
 
       startTransition(() => {
-        queryClient.invalidateQueries({ queryKey: [QueryKeys.Tokens] });
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.Tokens, params.organizationId] });
       });
     });
   }
