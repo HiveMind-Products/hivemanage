@@ -33,3 +33,11 @@ func GeneratePrimaryKey() (string, error) {
 	}
 	return id, nil
 }
+
+func GeneratePassword() (string, error) {
+	password, err := gonanoid.Generate("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%", 16)
+	if err != nil {
+		return "", err
+	}
+	return password, nil
+}

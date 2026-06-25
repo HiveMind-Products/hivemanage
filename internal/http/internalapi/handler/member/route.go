@@ -11,5 +11,8 @@ type handler struct{ memberService *member.Service }
 
 func RegisterRoutes(group *echo.Group, memberService *member.Service, authService *auth.Service) {
 	h := handler{memberService: memberService}
-	group.GET("/organization/:organizationId/member", h.listMembersHandler, middleware.OrganizationAdmin(authService))
+	adminOnly := middleware.OrganizationAdmin(authService)
+	group.GET("/organization/:organizationId/member", h.listMembersHandler, adminOnly)
+	group.POST("/organization/:organizationId/member", h.addMemberHandler, adminOnly)
+	group.DELETE("/organization/:organizationId/member/:memberId", h.removeMemberHandler, adminOnly)
 }

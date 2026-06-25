@@ -73,3 +73,11 @@ func ListMembers(ctx context.Context, db *bun.DB, organizationID string) ([]data
 
 	return members, nil
 }
+
+func DeleteMember(ctx context.Context, db *bun.DB, memberID int64, organizationID string) error {
+	_, err := db.NewDelete().
+		Model((*database.OrganizationMember)(nil)).
+		Where("id = ? AND organization_id = ?", memberID, organizationID).
+		Exec(ctx)
+	return err
+}
