@@ -2,6 +2,7 @@ package internalapi
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/fivemanage/lite/api"
@@ -11,7 +12,6 @@ import (
 	"github.com/fivemanage/lite/internal/service/file"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/sirupsen/logrus"
 )
 
 func registerStorageApi(group *echo.Group, fileService *file.Service, authService *auth.Service) {
@@ -135,7 +135,7 @@ func (h *storageHandler) uploadStorageFile(c echo.Context) error {
 
 	formFile, header, err := httputil.File(c.Request(), "file")
 	if err != nil {
-		logrus.WithField("organizationId", organizationID).Error("failed to get file from request")
+		slog.Error("failed to get file from request", "organization_id", organizationID, "err", err)
 
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			httputil.ErrorResponse("Failed to get file from request"),
@@ -149,7 +149,7 @@ func (h *storageHandler) uploadStorageFile(c echo.Context) error {
 		header,
 	)
 	if err != nil {
-		logrus.WithError(err).WithField("organizationId", organizationID).Error("failed to create file")
+		slog.Error("failed to create file", "organization_id", organizationID, "err", err)
 
 		if errors.Is(err, file.UploadStorageError{}) {
 			return echo.NewHTTPError(http.StatusInternalServerError,

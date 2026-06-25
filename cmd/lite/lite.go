@@ -23,13 +23,11 @@ import (
 	"github.com/fivemanage/lite/internal/service/token"
 	"github.com/fivemanage/lite/migrate"
 	"github.com/fivemanage/lite/pkg/cache"
-	"github.com/fivemanage/lite/pkg/logger"
 	"github.com/fivemanage/lite/pkg/otel"
-	"github.com/fivemanage/lite/pkg/storage"
+	storages3 "github.com/fivemanage/lite/pkg/storage/s3"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 )
 
 var Version = "dev"
@@ -43,8 +41,7 @@ var rootCmd = &cobra.Command{
 		port := viper.GetInt("port")
 		driver := viper.GetString("driver")
 		dsn := viper.GetString("dsn")
-
-		logger.New()
+		syncOTelConfigFromViper()
 
 		slog.Info("starting Fivemanage application", slog.String("version", Version))
 
@@ -94,7 +91,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		s3Provider := viper.GetString("s3-provider")
-		storageLayer, err := storage.New(s3Provider)
+		storageLayer, err := storages3.New(s3Provider)
 		if err != nil {
 			slog.Error("failed to initialize storage", slog.Any("error", err))
 			return
@@ -147,7 +144,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		go func() {
-			otelzap.S().Infof("Fivemanage is running on port %d", port)
+			slog.Info("Fivemanage is running", "port", port)
 			if err := srv.ListenAndServe(); err != nil && err != nethttp.ErrServerClosed {
 				slog.Error("listen", slog.Any("error", err))
 				os.Exit(1)
@@ -191,6 +188,8 @@ func init() {
 	// s3
 	rootCmd.Flags().String("s3-provider", "minio", "S3 provider")
 	rootCmd.Flags().String("bucket-domain", "", "Bucket domain for file storage")
+	rootCmd.Flags().Bool("otel-enabled", false, "Enable OpenTelemetry exporter")
+	rootCmd.Flags().String("otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint")
 
 	// fuck me
 	if err := viper.BindPFlag("port", rootCmd.Flags().Lookup("port")); err != nil {
@@ -226,6 +225,18 @@ func init() {
 	if err := viper.BindEnv("bucket-domain", "BUCKET_DOMAIN"); err != nil {
 		bindError(err)
 	}
+	if err := viper.BindPFlag("otel-enabled", rootCmd.Flags().Lookup("otel-enabled")); err != nil {
+		bindError(err)
+	}
+	if err := viper.BindPFlag("otel-endpoint", rootCmd.Flags().Lookup("otel-endpoint")); err != nil {
+		bindError(err)
+	}
+	if err := viper.BindEnv("otel-enabled", "OTEL_ENABLED"); err != nil {
+		bindError(err)
+	}
+	if err := viper.BindEnv("otel-endpoint", "OTEL_ENDPOINT"); err != nil {
+		bindError(err)
+	}
 
 	rootCmd.AddCommand(migrate.RootCmd)
 	migrate.RootCmd.AddCommand(
@@ -235,6 +246,17 @@ func init() {
 		migrate.UnlockCmd,
 		migrate.LockCmd,
 	)
+}
+
+func syncOTelConfigFromViper() {
+	if viper.GetBool("otel-enabled") {
+		_ = os.Setenv("OTEL_ENABLED", "true")
+	} else {
+		_ = os.Setenv("OTEL_ENABLED", "false")
+	}
+	if endpoint := viper.GetString("otel-endpoint"); endpoint != "" {
+		_ = os.Setenv("OTEL_ENDPOINT", endpoint)
+	}
 }
 
 func bindError(err error) {

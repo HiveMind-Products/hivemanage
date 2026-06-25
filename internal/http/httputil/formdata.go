@@ -1,20 +1,15 @@
 package httputil
 
 import (
-	"log"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
-
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
-	"go.uber.org/zap"
 )
 
 func File(r *http.Request, key string) (file multipart.File, fileHeader *multipart.FileHeader, err error) {
 	err = r.ParseMultipartForm(32 << 20)
 	if err != nil {
-		// logrus.WithError(err).Error("failed to parse multipart form")
-		otelzap.S().Error("failed to parse mutlipart form", zap.Error(err))
-		log.Println("failed to parse stuff", err.Error())
+		slog.Error("failed to parse multipart form", "err", err)
 		return nil, nil, err
 	}
 

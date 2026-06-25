@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/fivemanage/lite/internal/service/token"
 	"github.com/fivemanage/lite/pkg/cache"
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 )
 
 func TokenAuth(tokenService *token.Service, _ *cache.Cache) echo.MiddlewareFunc {
@@ -24,7 +24,7 @@ func TokenAuth(tokenService *token.Service, _ *cache.Cache) echo.MiddlewareFunc 
 
 			tokenData, err := tokenService.GetToken(ctx, apiToken)
 			if err != nil {
-				logrus.WithField("error", err).Error("failed to get token from service")
+				slog.Error("failed to get token from service", "err", err)
 				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "Unauthorized: Invalid token"})
 			}
 

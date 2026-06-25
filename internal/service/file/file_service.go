@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime/multipart"
 	"time"
 
@@ -12,8 +13,7 @@ import (
 	"github.com/fivemanage/lite/internal/database"
 	filequery "github.com/fivemanage/lite/internal/database/query/file"
 	"github.com/fivemanage/lite/internal/http/httputil"
-	"github.com/fivemanage/lite/pkg/storage"
-	"github.com/sirupsen/logrus"
+	storages3 "github.com/fivemanage/lite/pkg/storage/s3"
 	"github.com/uptrace/bun"
 )
 
@@ -24,10 +24,10 @@ const (
 
 type Service struct {
 	db      *bun.DB
-	storage storage.StorageLayer
+	storage *storages3.Storage
 }
 
-func NewService(db *bun.DB, storageLayer storage.StorageLayer) *Service {
+func NewService(db *bun.DB, storageLayer *storages3.Storage) *Service {
 	return &Service{db: db, storage: storageLayer}
 }
 
@@ -96,7 +96,7 @@ func (s *Service) createAsset(ctx context.Context, organizationID string, file m
 	}
 	if err := s.storage.UploadFile(ctx, file, key, mimeType); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
-			logrus.WithError(rbErr).WithField("organization_id", organizationID).Error("FileService.createAsset rollback")
+			slog.Error("FileService.createAsset rollback", "organization_id", organizationID, "err", rbErr)
 		}
 		return nil, UploadStorageError{ErrorMsg: err.Error()}
 	}
@@ -110,7 +110,7 @@ func (s *Service) ListStorageFiles(ctx context.Context, organizationID string, s
 	files, err := filequery.FindStorageFiles(ctx, s.db, organizationID, search, fileType, page, pageSize)
 	if err != nil {
 		storageError := &ListStorageError{ErrorMsg: err.Error()}
-		logrus.WithError(storageError).WithField("organization_id", organizationID).Error("FileService.ListStorageFiles")
+		slog.Error("FileService.ListStorageFiles", "organization_id", organizationID, "err", storageError)
 		return nil, storageError
 	}
 	assets := make([]*api.Asset, len(files))
@@ -120,7 +120,7 @@ func (s *Service) ListStorageFiles(ctx context.Context, organizationID string, s
 	totalCount, err := filequery.FindTotalStorageCount(ctx, s.db, organizationID)
 	if err != nil {
 		storageError := &ListStorageError{ErrorMsg: err.Error()}
-		logrus.WithError(storageError).WithField("organization_id", organizationID).Error("FileService.ListStorageFiles")
+		slog.Error("FileService.ListStorageFiles", "organization_id", organizationID, "err", storageError)
 		return nil, storageError
 	}
 	return &api.AssetResponse{StorageFiles: assets, TotalCount: totalCount}, nil
@@ -130,7 +130,7 @@ func (s *Service) GetStorageFile(ctx context.Context, organizationID string, fil
 	file, err := filequery.FindFileByID(ctx, s.db, organizationID, fileID)
 	if err != nil {
 		storageError := &GetFileError{ErrorMsg: err.Error()}
-		logrus.WithError(storageError).WithField("organization_id", organizationID).Error("FileService.GetStorageFile")
+		slog.Error("FileService.GetStorageFile", "organization_id", organizationID, "err", storageError)
 		return nil, storageError
 	}
 	if file == nil {

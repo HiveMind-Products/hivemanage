@@ -3,16 +3,15 @@ package migrate
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/fivemanage/lite/internal/database"
 	"github.com/fivemanage/lite/migrate/migrations"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/migrate"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 )
 
 var (
@@ -57,10 +56,10 @@ var (
 				panic(err)
 			}
 			if group.IsZero() {
-				otelzap.S().Info("there are no new migrations to run (database is up to date)")
+				slog.Info("there are no new migrations to run (database is up to date)")
 			}
 
-			otelzap.S().Infof("migrated to %s", group)
+			slog.Info("migrated", "group", group)
 		},
 	}
 
@@ -136,9 +135,9 @@ func AutoMigrate(ctx context.Context, db *bun.DB) {
 		panic(err)
 	}
 	if group.IsZero() {
-		otelzap.S().Info("there are no new migrations to run (database is up to date)")
+		slog.Info("there are no new migrations to run (database is up to date)")
 		return
 	}
 
-	logrus.Infof("migrated to %s", group)
+	slog.Info("migrated", "group", group)
 }

@@ -2,6 +2,7 @@ package dataset
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/fivemanage/lite/api"
@@ -10,7 +11,6 @@ import (
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 )
 
 // createDatasetHandler godoc
@@ -30,7 +30,7 @@ func (r *handler) createDatasetHandler(c echo.Context) error {
 
 	var data api.CreateDatasetRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		logrus.WithError(err).Error("failed to bind and validate token")
+		slog.Error("failed to bind and validate token", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -38,7 +38,7 @@ func (r *handler) createDatasetHandler(c echo.Context) error {
 
 	dataset, err := r.datasetService.Create(ctx, organizationID, data)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create dataset")
+		slog.Error("failed to create dataset", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -62,7 +62,7 @@ func (r *handler) listDatasetsHandler(c echo.Context) error {
 
 	datasets, err := r.datasetService.List(ctx, organizationID)
 	if err != nil {
-		logrus.WithError(err).Error("failed to list datasets")
+		slog.Error("failed to list datasets", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -88,7 +88,7 @@ func (r *handler) listDatasetFieldsHandler(c echo.Context) error {
 
 	fields, err := r.datasetService.ListFields(ctx, organizationID, datasetID)
 	if err != nil {
-		logrus.WithError(err).Error("failed to list dataset fields")
+		slog.Error("failed to list dataset fields", "err", err)
 		if errors.Is(err, clickhouse.ErrUnavailable) {
 			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
 		}
@@ -119,13 +119,13 @@ func (r *handler) queryDatasetLogsHandler(c echo.Context) error {
 
 	var data api.ListLogsSchema
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		logrus.WithError(err).Error("failed to bind and validate token")
+		slog.Error("failed to bind and validate token", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
 	logs, err := r.datasetService.QueryLogs(ctx, organizationID, datasetID, data.FromDate, data.ToDate, data.Filter, data.Cursor)
 	if err != nil {
-		logrus.WithError(err).Error("failed to query dataset logs")
+		slog.Error("failed to query dataset logs", "err", err)
 		if errors.Is(err, clickhouse.ErrUnavailable) {
 			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
 		}
@@ -164,7 +164,7 @@ func (r *handler) getDatasetLogHandler(c echo.Context) error {
 
 	log, err := r.datasetService.GetLog(ctx, organizationID, datasetID, logID)
 	if err != nil {
-		logrus.WithError(err).Error("failed to get dataset log")
+		slog.Error("failed to get dataset log", "err", err)
 		if errors.Is(err, clickhouse.ErrUnavailable) {
 			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
 		}

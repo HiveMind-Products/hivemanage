@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"strings"
 	"time"
@@ -13,8 +14,6 @@ import (
 	"github.com/fivemanage/lite/internal/crypt"
 	"github.com/fivemanage/lite/internal/service/dataset"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
-	"go.uber.org/zap"
 )
 
 const (
@@ -49,7 +48,7 @@ func (r *Service) SubmitLogs(ctx context.Context, organizationId string, dataset
 
 	dataset, err := r.datasetService.FindByName(ctx, organizationId, datasetName)
 	if err != nil {
-		otelzap.L().Error("failed to find dataset", zap.Error(err))
+		slog.Error("failed to find dataset", "err", err)
 		return err
 	}
 
@@ -60,7 +59,7 @@ func (r *Service) SubmitLogs(ctx context.Context, organizationId string, dataset
 
 		traceID, err := crypt.GeneratePrimaryKey()
 		if err != nil {
-			otelzap.L().Error("failed to generate trace id", zap.Error(err))
+			slog.Error("failed to generate trace id", "err", err)
 			return err
 		}
 
@@ -101,7 +100,7 @@ func (r *Service) SubmitLogs(ctx context.Context, organizationId string, dataset
 
 	err = r.clickhouseClient.BatchWriteLogRows(ctx, clickhouseLogs)
 	if err != nil {
-		otelzap.L().Error("failed to submit logs to clickhouse", zap.Error(err))
+		slog.Error("failed to submit logs to clickhouse", "err", err)
 		return err
 	}
 	return nil

@@ -2,6 +2,7 @@ package organization
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/fivemanage/lite/api"
@@ -10,7 +11,6 @@ import (
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 )
 
 // createOrganizationHandler godoc
@@ -29,7 +29,7 @@ func (r *handler) createOrganizationHandler(c echo.Context) error {
 
 	var data api.CreateOrganizationRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		logrus.WithError(err).Error("failed to bind and validate token")
+		slog.Error("failed to bind and validate token", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -37,7 +37,7 @@ func (r *handler) createOrganizationHandler(c echo.Context) error {
 
 	organization, err := r.organizationService.CreateOrganization(ctx, &data, user.ID)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create organization")
+		slog.Error("failed to create organization", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -59,7 +59,7 @@ func (r *handler) listOrganizationsHandler(c echo.Context) error {
 	user := cc.User()
 	organizations, err := r.organizationService.ListOrganizations(ctx, user.ID)
 	if err != nil {
-		logrus.WithError(err).Error("failed to list organizations")
+		slog.Error("failed to list organizations", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -83,7 +83,7 @@ func (r *handler) getOrganizationHandler(c echo.Context) error {
 
 	organization, err := r.organizationService.FindOrganizationByID(ctx, id)
 	if err != nil {
-		logrus.WithError(err).Error("failed to find organization")
+		slog.Error("failed to find organization", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -107,7 +107,7 @@ func (r *handler) getOrganizationStatsHandler(c echo.Context) error {
 
 	stats, err := r.organizationService.GetStats(ctx, id)
 	if err != nil {
-		logrus.WithError(err).Error("failed to get organization stats")
+		slog.Error("failed to get organization stats", "err", err)
 		if errors.Is(err, clickhouse.ErrUnavailable) {
 			return cc.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
 		}

@@ -10,20 +10,33 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 )
 
-func GetMimeDetails(fileHeader *multipart.FileHeader, file multipart.File) (string, string, string, error) {
-	var fileType string
+const mimeSniffBytes = 3072
 
-	buf := make([]byte, 3072)
-	_, err := file.Read(buf)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return "", "", "", fmt.Errorf("error reading file: %w", err)
+func DetectMime(file multipart.File) (*mimetype.MIME, error) {
+	buf := make([]byte, mimeSniffBytes)
+	n, err := io.ReadFull(file, buf)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	mime := mimetype.Detect(buf)
+	if seeker, ok := file.(io.Seeker); ok {
+		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("error resetting file: %w", err)
+		}
+	}
+
+	return mimetype.Detect(buf[:n]), nil
+}
+
+func GetMimeDetails(fileHeader *multipart.FileHeader, file multipart.File) (string, string, string, error) {
+	mime, err := DetectMime(file)
+	if err != nil {
+		return "", "", "", err
+	}
+
 	mimeType := mime.String()
 	extension := mime.Extension()
-
-	fileType = strings.Split(mime.String(), "/")[0]
+	fileType := strings.Split(mimeType, "/")[0]
 
 	return mimeType, extension, fileType, nil
 }

@@ -26,7 +26,6 @@ type Cache struct {
 
 type mop struct {
 	interval time.Duration
-	stop     chan bool
 }
 
 func NewMemcache(defaultExpiration time.Duration) *Cache {
@@ -37,12 +36,7 @@ func NewMemcache(defaultExpiration time.Duration) *Cache {
 		},
 	}
 
-	m := &mop{
-		interval: time.Minute,
-		stop:     make(chan bool),
-	}
-
-	go m.start(c)
+	go (&mop{interval: time.Minute}).start(c)
 
 	return c
 }
@@ -52,7 +46,7 @@ func (c *Cache) Set(key string, value any, expiration time.Duration) {
 	defer c.mutex.Unlock()
 
 	if expiration <= 0 {
-		expiration = time.Duration(c.defaultExpiration)
+		expiration = c.defaultExpiration
 	}
 
 	c.items[key] = Item{
@@ -81,25 +75,17 @@ func (c *Cache) Delete(key string) {
 }
 
 func (m *mop) start(c *Cache) {
-	m.stop = make(chan bool)
-	go func() {
-		ticker := time.NewTicker(m.interval)
-		defer ticker.Stop()
+	ticker := time.NewTicker(m.interval)
+	defer ticker.Stop()
 
-		for {
-			select {
-			case <-ticker.C:
-				c.mutex.Lock()
-				now := time.Now().Unix()
-				for key, item := range c.items {
-					if item.Expiration > 0 && item.Expiration < now {
-						delete(c.items, key)
-					}
-				}
-				c.mutex.Unlock()
-			case <-m.stop:
-				return
+	for range ticker.C {
+		c.mutex.Lock()
+		now := time.Now().Unix()
+		for key, item := range c.items {
+			if item.Expiration > 0 && item.Expiration < now {
+				delete(c.items, key)
 			}
 		}
-	}()
+		c.mutex.Unlock()
+	}
 }

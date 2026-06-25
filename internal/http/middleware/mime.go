@@ -1,9 +1,7 @@
 package middleware
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/fivemanage/lite/internal/http/httputil"
@@ -43,22 +41,18 @@ func ValidateMime(fileKey string, whitelistedTypes []string) echo.MiddlewareFunc
 		return func(ctx echo.Context) error {
 			file, _, err := httputil.File(ctx.Request(), fileKey)
 			if err != nil {
-				fmt.Printf("Failed to find FormData file. Error: %v\n", err)
 				return ctx.JSON(http.StatusBadRequest, echo.Map{
 					"error": err.Error(),
 				})
 			}
 
-			buf := make([]byte, 3072)
-			_, err = file.Read(buf)
-			if err != nil && !errors.Is(err, io.EOF) {
-				fmt.Printf("Failed to read buffer. Error: %v\n", err)
+			mime, err := httputil.DetectMime(file)
+			if err != nil {
 				return ctx.JSON(http.StatusBadRequest, echo.Map{
 					"error": err.Error(),
 				})
 			}
 
-			mime := mimetype.Detect(buf)
 			if len(whitelistedTypes) == 0 {
 				return next(ctx)
 			}

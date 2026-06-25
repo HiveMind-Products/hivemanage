@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strconv"
 
@@ -10,10 +11,8 @@ import (
 	"github.com/fivemanage/lite/internal/database"
 	tokenquery "github.com/fivemanage/lite/internal/database/query/token"
 	"github.com/uptrace/bun"
-	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.uber.org/zap"
 )
 
 var tracer = otel.Tracer("github.com/fivemanage/lite/internal/service/token")
@@ -75,7 +74,7 @@ func (r *Service) ListTokens(ctx context.Context, organizationID string) ([]*api
 	tokens, err := tokenquery.List(ctx, r.db, organizationID)
 	if err != nil {
 		span.RecordError(err)
-		otelzap.L().Error("failed to list tokens", zap.Error(err))
+		slog.Error("failed to list tokens", "err", err)
 		return nil, err
 	}
 
@@ -90,7 +89,7 @@ func (r *Service) ListTokens(ctx context.Context, organizationID string) ([]*api
 		attribute.Int("token_count", len(tokens)),
 	)
 
-	otelzap.L().Debug("listed tokens successfully", zap.Int("count", len(tokens)))
+	slog.Debug("listed tokens successfully", "count", len(tokens))
 
 	return response, nil
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/fivemanage/lite/internal/service/system"
 	"github.com/fivemanage/lite/internal/service/token"
 	"github.com/fivemanage/lite/pkg/cache"
+	"github.com/fivemanage/lite/pkg/otel"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
@@ -72,7 +73,9 @@ func NewServer(
 		AllowCredentials: true,
 	}))
 
-	app.Use(otelecho.Middleware("lite-api"))
+	if otel.Enabled() {
+		app.Use(otelecho.Middleware("lite-api"))
+	}
 	app.Use(middleware.Recover())
 	app.Use(internalmiddleware.AppContext)
 	app.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))

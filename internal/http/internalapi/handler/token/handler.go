@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/fivemanage/lite/api"
@@ -9,7 +10,6 @@ import (
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 )
 
 // createTokenHandler godoc
@@ -32,7 +32,7 @@ func (r *handler) createTokenHandler(c echo.Context) error {
 
 	var data api.CreateTokenRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		logrus.WithError(err).Error("failed to bind and validate token")
+		slog.Error("failed to bind and validate token", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,11 +16,28 @@ import (
 )
 
 const (
-	serviceName  = "lite-api"
-	otlpEndpoint = "localhost:4318"
+	serviceName         = "lite-api"
+	defaultOTLPEndpoint = "localhost:4318"
 )
 
+func Enabled() bool {
+	enabled := strings.TrimSpace(strings.ToLower(os.Getenv("OTEL_ENABLED")))
+	return enabled == "true" || enabled == "1" || enabled == "yes"
+}
+
+func Endpoint() string {
+	endpoint := strings.TrimSpace(os.Getenv("OTEL_ENDPOINT"))
+	if endpoint != "" {
+		return endpoint
+	}
+	return defaultOTLPEndpoint
+}
+
 func SetupTracer() (func(context.Context) error, error) {
+	if !Enabled() {
+		return func(context.Context) error { return nil }, nil
+	}
+
 	ctx := context.Background()
 	return InstallExportPipeline(ctx)
 }
@@ -43,7 +61,7 @@ func InstallExportPipeline(ctx context.Context) (func(context.Context) error, er
 	}
 
 	exporter, err := otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpoint(otlpEndpoint),
+		otlptracehttp.WithEndpoint(Endpoint()),
 		tlsOption,
 	)
 	if err != nil {

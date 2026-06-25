@@ -2,6 +2,7 @@ package member
 
 import (
 	"errors"
+	"log/slog"
 	"strconv"
 
 	"github.com/fivemanage/lite/api"
@@ -10,7 +11,6 @@ import (
 	"github.com/fivemanage/lite/internal/http/validator"
 	memberservice "github.com/fivemanage/lite/internal/service/member"
 	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
 )
 
 // listMembersHandler godoc
@@ -30,7 +30,7 @@ func (r *handler) listMembersHandler(c echo.Context) error {
 
 	members, err := r.memberService.ListMembers(ctx, id)
 	if err != nil {
-		logrus.WithError(err).Error("failed to list members")
+		slog.Error("failed to list members", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -56,13 +56,13 @@ func (r *handler) addMemberHandler(c echo.Context) error {
 
 	var data api.CreateMemberRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		logrus.WithError(err).Error("failed to bind and validate member request")
+		slog.Error("failed to bind and validate member request", "err", err)
 		return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 	}
 
 	resp, err := r.memberService.AddMember(ctx, organizationID, &data)
 	if err != nil {
-		logrus.WithError(err).Error("failed to add member")
+		slog.Error("failed to add member", "err", err)
 		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
 	}
 
@@ -95,13 +95,13 @@ func (r *handler) updateMemberHandler(c echo.Context) error {
 
 	var data api.UpdateMemberRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		logrus.WithError(err).Error("failed to bind and validate update member request")
+		slog.Error("failed to bind and validate update member request", "err", err)
 		return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 	}
 
 	updated, err := r.memberService.UpdateMember(ctx, organizationID, memberID, &data)
 	if err != nil {
-		logrus.WithError(err).Error("failed to update member")
+		slog.Error("failed to update member", "err", err)
 		if errors.Is(err, memberservice.ErrLastAdmin) {
 			return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 		}
@@ -134,7 +134,7 @@ func (r *handler) removeMemberHandler(c echo.Context) error {
 	}
 
 	if err := r.memberService.RemoveMember(ctx, organizationID, memberID); err != nil {
-		logrus.WithError(err).Error("failed to remove member")
+		slog.Error("failed to remove member", "err", err)
 		if errors.Is(err, memberservice.ErrLastAdmin) {
 			return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 		}

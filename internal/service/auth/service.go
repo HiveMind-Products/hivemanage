@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -14,9 +15,7 @@ import (
 	"github.com/fivemanage/lite/internal/crypt"
 	"github.com/fivemanage/lite/internal/database"
 	organizationquery "github.com/fivemanage/lite/internal/database/query/organization"
-	"github.com/fivemanage/lite/internal/helper/strings"
 	"github.com/fivemanage/lite/internal/permissions"
-	"github.com/sirupsen/logrus"
 	"github.com/uptrace/bun"
 	"golang.org/x/oauth2"
 )
@@ -52,7 +51,7 @@ func (r *Service) CreateAdminUser() error {
 	if err != nil {
 		// todo: create a database.selectError func
 		if errors.Is(err, sql.ErrNoRows) {
-			logrus.Info("Found no admin user. Attempting to create one.")
+			slog.Info("found no admin user; attempting to create one")
 		} else {
 			return err
 		}
@@ -84,7 +83,7 @@ func (r *Service) CreateAdminUser() error {
 		return err
 	}
 
-	logrus.Info("Successfully created admin user. Proceeding.")
+	slog.Info("successfully created admin user")
 
 	return nil
 }
@@ -159,7 +158,7 @@ func (r *Service) userExists(ctx context.Context, email string) bool {
 	user := new(database.User)
 	err := r.db.NewSelect().Model(user).Where("email = ?", email).Scan(ctx)
 	if err != nil {
-		logrus.WithField("email", email).WithError(err).Error("failed to check if user exists")
+		slog.Error("failed to check if user exists", "email", email, "err", err)
 	}
 
 	if user.ID == 0 {
@@ -174,7 +173,7 @@ func (r *Service) createUser(ctx context.Context, register *api.RegisterRequest)
 	var err error
 	hash, err := crypt.HashPassword(register.Password)
 	if err != nil {
-		logrus.WithError(err).Error("failed to hash password")
+		slog.Error("failed to hash password", "err", err)
 		return 0, err
 	}
 
@@ -260,11 +259,18 @@ func (r *Service) UserBySession(ctx context.Context, sessionID string) (*api.Use
 		ID:                        session.User.ID,
 		Username:                  session.User.Username,
 		IsAdmin:                   session.User.IsAdmin,
-		Name:                      strings.Null(session.User.Name),
-		Email:                     strings.Null(session.User.Email),
-		Avatar:                    strings.Null(session.User.Avatar),
+		Name:                      nullString(session.User.Name),
+		Email:                     nullString(session.User.Email),
+		Avatar:                    nullString(session.User.Avatar),
 		PermissionsByOrganization: permissionsByOrganization,
 	}, nil
+}
+
+func nullString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (r *Service) permissionsByOrganization(ctx context.Context, userID int64) (map[string]api.MemberPermissions, error) {
