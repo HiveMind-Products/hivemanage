@@ -10,6 +10,7 @@ import { NewOrganizationRoute } from "./features/organizations/routes/NewOrganiz
 import { OrganizationSelectRoute } from "./features/organizations/routes/OrganizationSelectRoute";
 import { Toaster } from "sonner";
 import { OrganizationTeamRoute } from "./features/organizations/routes/organization-team-route";
+import { PermissionElement, PermissionRoute } from "./features/auth/routes/PermissionRoute";
 const StorageRoute = lazy(
   () => import("./features/files/routes/storage-route"),
 );
@@ -38,17 +39,17 @@ function App() {
                   element={<NewOrganizationRoute />}
                 />
                 <Route path=":organizationId" element={<AppLayout />}>
-                  <Route index element={<AppDashboard />} />
-                  <Route path="tokens" element={<TokensRoute />} />
-                  <Route path="storage">
+                  <Route index element={<PermissionElement module="overview"><AppDashboard /></PermissionElement>} />
+                  <Route path="tokens" element={<PermissionElement module="tokens"><TokensRoute /></PermissionElement>} />
+                  <Route path="storage" element={<PermissionRoute module="storage" />}>
                     <Route index element={<StorageRoute />} />
                     <Route path=":fileId" element={<FileRoute />} />
                   </Route>
-                  <Route path="logs">
+                  <Route path="logs" element={<PermissionRoute module="logs" />}>
                     <Route index element={<DatasetRoute />} />
                     <Route path=":datasetId" element={<LogsRoute />} />
                   </Route>
-                  <Route path="team" element={<OrganizationTeamRoute />} />
+                  <Route path="team" element={<PermissionElement module="team"><OrganizationTeamRoute /></PermissionElement>} />
                 </Route>
               </Route>
             </Route>

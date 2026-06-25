@@ -1,7 +1,8 @@
 import { lazy } from "react";
 import { List } from "@/components/ui/list";
 import { useNavigate } from "react-router";
-import { $api } from "@/lib/api/client";
+import { useListDatasets } from "../api/dataset-api";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 const DatasetSheet = lazy(() => import("./dataset-sheet/dataset-sheet"));
 
 interface DatasetActionsProps {
@@ -11,17 +12,9 @@ interface DatasetActionsProps {
 export default function DatasetOverview({
   organizationId,
 }: DatasetActionsProps) {
-  const { data: response } = $api.useQuery(
-    "get",
-    "/dash/{organizationId}/dataset",
-    {
-      params: {
-        path: { organizationId },
-      },
-    },
-  );
-  const datasets = response?.data;
+  const { data: datasets } = useListDatasets(organizationId);
   const navigate = useNavigate();
+  const canWrite = usePermission("logs", "write");
 
   function navigateToDataset(id: string) {
     navigate(`${id}`);
@@ -32,7 +25,7 @@ export default function DatasetOverview({
       <div className="w-full max-w-6xl mx-auto">
         <List>
           <List.Header title="Datasets">
-            <DatasetSheet organizationId={organizationId} />
+            {canWrite && <DatasetSheet organizationId={organizationId} />}
           </List.Header>
           <div>
             {datasets &&

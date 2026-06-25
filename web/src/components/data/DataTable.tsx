@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useLocation, useSearchParams, useNavigate } from "react-router";
+import { useSearchParams } from "react-router";
 import { Asset } from "@/typings/asset";
 //import { DataDeleteDialog } from "./DataDeleteDialog";
 
@@ -72,11 +72,11 @@ export function DataTable<T extends Asset>({
   }; */
 
   useEffect(() => {
-    if (pagination) {
-      const params = new URLSearchParams(searchParams);
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current);
       params.set("page", `${pagination.pageIndex}`);
-      setSearchParams(params, { replace: true });
-    }
+      return params;
+    }, { replace: true });
   }, [pagination.pageIndex, setSearchParams]);
 
   return (

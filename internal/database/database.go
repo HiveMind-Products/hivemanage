@@ -3,6 +3,7 @@ package database
 import (
 	"time"
 
+	"github.com/fivemanage/lite/api"
 	"github.com/uptrace/bun"
 )
 
@@ -37,12 +38,13 @@ type Organization struct {
 
 type OrganizationMember struct {
 	bun.BaseModel  `bun:"table:organization_member"`
-	ID             int64         `bun:"id,pk,autoincrement"`
-	Role           string        `bun:"role"`
-	UserID         int64         `bun:"user_id"`
-	OrganizationID string        `bun:"organization_id"`
-	User           *User         `bun:"rel:belongs-to,join:user_id=id"`
-	Organization   *Organization `bun:"rel:belongs-to,join:organization_id=id"`
+	ID             int64                 `bun:"id,pk,autoincrement"`
+	Role           string                `bun:"role"`
+	Permissions    api.MemberPermissions `bun:"permissions,type:jsonb"`
+	UserID         int64                 `bun:"user_id"`
+	OrganizationID string                `bun:"organization_id"`
+	User           *User                 `bun:"rel:belongs-to,join:user_id=id"`
+	Organization   *Organization         `bun:"rel:belongs-to,join:organization_id=id"`
 }
 
 type Token struct {

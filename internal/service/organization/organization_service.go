@@ -11,6 +11,7 @@ import (
 	filequery "github.com/fivemanage/lite/internal/database/query/file"
 	organizationquery "github.com/fivemanage/lite/internal/database/query/organization"
 	tokenquery "github.com/fivemanage/lite/internal/database/query/token"
+	"github.com/fivemanage/lite/internal/permissions"
 	"github.com/uptrace/bun"
 )
 
@@ -85,7 +86,8 @@ func (r *Service) CreateOrganization(ctx context.Context, data *api.CreateOrgani
 	}
 
 	if _, err := tx.NewInsert().Model(&database.OrganizationMember{
-		Role:           "ADMIN",
+		Role:           api.MemberRoleAdmin,
+		Permissions:    permissions.Preset(api.MemberRoleAdmin),
 		OrganizationID: dbOrganization.ID,
 		UserID:         userID,
 	}).Exec(ctx); err != nil {

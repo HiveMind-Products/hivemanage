@@ -11,10 +11,11 @@ type LoginRequest struct {
 }
 
 type User struct {
-	ID       int64   `json:"id"`
-	Name     *string `json:"name"`
-	Username string  `json:"username"`
-	Email    *string `json:"email"`
-	Avatar   *string `json:"avatar"`
-	IsAdmin  bool    `json:"isAdmin"`
+	ID                        int64                        `json:"id"`
+	Name                      *string                      `json:"name"`
+	Username                  string                       `json:"username"`
+	Email                     *string                      `json:"email"`
+	Avatar                    *string                      `json:"avatar"`
+	IsAdmin                   bool                         `json:"isAdmin"`
+	PermissionsByOrganization map[string]MemberPermissions `json:"permissionsByOrganization"`
 }

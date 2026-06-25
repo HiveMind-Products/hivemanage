@@ -14,10 +14,12 @@ import { useSearchParams } from "react-router";
 import { useDebounce } from "@/hooks/use-debounce";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Grid2X2, List, Search } from "lucide-react";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 import { AssetGridSkeleton } from "../components/asset-grid-skeleton";
 
 export default function StorageRoute() {
+  const canWrite = usePermission("storage", "write");
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const debouncedSearch = useDebounce(search, 300);
@@ -26,13 +28,15 @@ export default function StorageRoute() {
   const view = searchParams.get("view") ?? "list";
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    if (debouncedSearch) {
-      params.set("search", debouncedSearch);
-    } else {
-      params.delete("search");
-    }
-    setSearchParams(params, { replace: true });
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current);
+      if (debouncedSearch) {
+        params.set("search", debouncedSearch);
+      } else {
+        params.delete("search");
+      }
+      return params;
+    }, { replace: true });
   }, [debouncedSearch, setSearchParams]);
 
   const handleTypeChange = (value: string) => {
@@ -90,7 +94,7 @@ export default function StorageRoute() {
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
-        <UploadDialog />
+        {canWrite && <UploadDialog />}
       </div>
 
       <div className="mt-4">

@@ -16,12 +16,13 @@ import (
 
 func registerStorageApi(group *echo.Group, fileService *file.Service, authService *auth.Service) {
 	h := &storageHandler{fileService: fileService}
-	adminOnly := middleware.OrganizationAdmin(authService)
-	group.GET("/storage/:organizationId", h.listStorageFiles)
-	group.GET("/storage/:organizationId/file/:fileId", h.getStorageFile)
-	group.GET("/storage/:organizationId/file/:fileId/url", h.getStorageFileURL)
-	group.POST("/storage/:organizationId/upload", h.uploadStorageFile, echoMiddleware.BodyLimit("500M"), adminOnly)
-	group.DELETE("/storage/:organizationId/file/:fileId", h.deleteStorageFile, adminOnly)
+	readStorage := middleware.OrganizationPermission(authService, api.PermissionModuleStorage, api.PermissionActionRead)
+	writeStorage := middleware.OrganizationPermission(authService, api.PermissionModuleStorage, api.PermissionActionWrite)
+	group.GET("/storage/:organizationId", h.listStorageFiles, readStorage)
+	group.GET("/storage/:organizationId/file/:fileId", h.getStorageFile, readStorage)
+	group.GET("/storage/:organizationId/file/:fileId/url", h.getStorageFileURL, readStorage)
+	group.POST("/storage/:organizationId/upload", h.uploadStorageFile, echoMiddleware.BodyLimit("500M"), writeStorage)
+	group.DELETE("/storage/:organizationId/file/:fileId", h.deleteStorageFile, writeStorage)
 }
 
 type storageHandler struct {

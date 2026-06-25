@@ -3,6 +3,7 @@ package organizationquery
 import (
 	"context"
 
+	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/database"
 	"github.com/uptrace/bun"
 )
@@ -59,6 +60,33 @@ func CreateMember(ctx context.Context, db *bun.DB, member *database.Organization
 	return tx, nil
 }
 
+func FindMember(ctx context.Context, db *bun.DB, organizationID string, memberID int64) (*database.OrganizationMember, error) {
+	member := new(database.OrganizationMember)
+	err := db.NewSelect().
+		Model(member).
+		Relation("User").
+		Where("organization_id = ?", organizationID).
+		Where("organization_member.id = ?", memberID).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return member, nil
+}
+
+func FindMemberByUser(ctx context.Context, db *bun.DB, organizationID string, userID int64) (*database.OrganizationMember, error) {
+	member := new(database.OrganizationMember)
+	err := db.NewSelect().
+		Model(member).
+		Where("organization_id = ?", organizationID).
+		Where("user_id = ?", userID).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return member, nil
+}
+
 func ListMembers(ctx context.Context, db *bun.DB, organizationID string) ([]database.OrganizationMember, error) {
 	var members []database.OrganizationMember
 
@@ -66,12 +94,31 @@ func ListMembers(ctx context.Context, db *bun.DB, organizationID string) ([]data
 		Model(&members).
 		Relation("User").
 		Where("organization_id = ?", organizationID).
+		Order("organization_member.id ASC").
 		Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return members, nil
+}
+
+func CountAdmins(ctx context.Context, db *bun.DB, organizationID string) (int, error) {
+	return db.NewSelect().
+		Model((*database.OrganizationMember)(nil)).
+		Where("organization_id = ?", organizationID).
+		Where("role = ?", "ADMIN").
+		Count(ctx)
+}
+
+func UpdateMember(ctx context.Context, db *bun.DB, organizationID string, memberID int64, role string, permissions api.MemberPermissions) error {
+	member := &database.OrganizationMember{ID: memberID, Role: role, Permissions: permissions}
+	_, err := db.NewUpdate().
+		Model(member).
+		Column("role", "permissions").
+		Where("id = ? AND organization_id = ?", memberID, organizationID).
+		Exec(ctx)
+	return err
 }
 
 func DeleteMember(ctx context.Context, db *bun.DB, memberID int64, organizationID string) error {

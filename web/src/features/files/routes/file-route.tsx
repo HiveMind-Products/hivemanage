@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Link } from "react-router";
 import { FileViewer } from "../components/file/file-viewer";
 import { FileHeader } from "../components/file/file-header";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 function formatBytes(bytes: number, decimals = 2) {
   if (!+bytes) return "0 Bytes";
@@ -34,6 +35,7 @@ export default function FileRoute() {
     fileId: string;
   }>();
 
+  const canWrite = usePermission("storage", "write");
   const { data, isPending } = useFile(organizationId, fileId);
   const { data: signedURL } = useFileURL(organizationId, fileId);
 
@@ -198,10 +200,12 @@ export default function FileRoute() {
             </Card>
           )}
 
-          <Button variant="destructive" className="w-full">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </Button>
+          {canWrite && (
+            <Button variant="destructive" className="w-full">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     </div>

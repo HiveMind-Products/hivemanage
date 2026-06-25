@@ -13,7 +13,9 @@ import (
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/crypt"
 	"github.com/fivemanage/lite/internal/database"
+	organizationquery "github.com/fivemanage/lite/internal/database/query/organization"
 	"github.com/fivemanage/lite/internal/helper/strings"
+	"github.com/fivemanage/lite/internal/permissions"
 	"github.com/sirupsen/logrus"
 	"github.com/uptrace/bun"
 	"golang.org/x/oauth2"
@@ -249,14 +251,42 @@ func (r *Service) UserBySession(ctx context.Context, sessionID string) (*api.Use
 		return nil, ErrSessionExpired{}
 	}
 
+	permissionsByOrganization, err := r.permissionsByOrganization(ctx, session.User.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &api.User{
-		ID:       session.User.ID,
-		Username: session.User.Username,
-		IsAdmin:  session.User.IsAdmin,
-		Name:     strings.Null(session.User.Name),
-		Email:    strings.Null(session.User.Email),
-		Avatar:   strings.Null(session.User.Avatar),
+		ID:                        session.User.ID,
+		Username:                  session.User.Username,
+		IsAdmin:                   session.User.IsAdmin,
+		Name:                      strings.Null(session.User.Name),
+		Email:                     strings.Null(session.User.Email),
+		Avatar:                    strings.Null(session.User.Avatar),
+		PermissionsByOrganization: permissionsByOrganization,
 	}, nil
+}
+
+func (r *Service) permissionsByOrganization(ctx context.Context, userID int64) (map[string]api.MemberPermissions, error) {
+	var members []database.OrganizationMember
+	if err := r.db.NewSelect().Model(&members).Where("user_id = ?", userID).Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]api.MemberPermissions, len(members))
+	for _, member := range members {
+		role, normalizedPermissions, err := permissions.Normalize(member.Role, member.Permissions)
+		if err != nil {
+			role = api.MemberRoleViewer
+			normalizedPermissions = permissions.Preset(role)
+		}
+		if role == api.MemberRoleAdmin {
+			normalizedPermissions = permissions.Preset(api.MemberRoleAdmin)
+		}
+		result[member.OrganizationID] = normalizedPermissions
+	}
+
+	return result, nil
 }
 
 func (r *Service) IsOrganizationMember(ctx context.Context, userID int64, organizationID string) (bool, error) {
@@ -288,7 +318,23 @@ func (r *Service) IsOrganizationAdmin(ctx context.Context, userID int64, organiz
 		return false, err
 	}
 
-	return member.Role == "ADMIN", nil
+	role, err := permissions.NormalizeRole(member.Role)
+	if err != nil {
+		return false, nil
+	}
+	return role == api.MemberRoleAdmin, nil
+}
+
+func (r *Service) HasOrganizationPermission(ctx context.Context, userID int64, organizationID string, module string, action string) (bool, error) {
+	member, err := organizationquery.FindMemberByUser(ctx, r.db, organizationID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return permissions.Can(member.Role, member.Permissions, module, action), nil
 }
 
 func (r *Service) LogoutUser(ctx context.Context, sessionID string) error {

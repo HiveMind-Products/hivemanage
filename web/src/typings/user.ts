@@ -1,4 +1,6 @@
 //{"data":{"id":15,"name":"Admin","username":"admin","email":null,"avatar":null,"isAdmin":true},"status":"ok"}
+import type { MemberPermissions } from "./permissions";
+
 export interface Session {
   id: number;
   name?: string;
@@ -6,4 +8,5 @@ export interface Session {
   email?: string;
   avatar?: string;
   isAdmin: boolean;
+  permissionsByOrganization?: Record<string, MemberPermissions>;
 }

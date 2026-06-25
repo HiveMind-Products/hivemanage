@@ -1,7 +1,6 @@
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -13,9 +12,10 @@ import { KeyRoundIcon } from "lucide-react";
 
 interface TokensTableProps {
   organizationId: string;
+  canWrite: boolean;
 }
 
-export function TokensTable({ organizationId }: TokensTableProps) {
+export function TokensTable({ organizationId, canWrite }: TokensTableProps) {
   const tokens = useTokens(organizationId);
 
   if (!tokens || tokens.length === 0) {
@@ -57,7 +57,7 @@ export function TokensTable({ organizationId }: TokensTableProps) {
                 </code>
               </TableCell>
               <TableCell className="text-right pr-6">
-                <DeleteTokenDialog tokenId={token.id} />
+                {canWrite && <DeleteTokenDialog tokenId={token.id} />}
               </TableCell>
             </TableRow>
           ))}

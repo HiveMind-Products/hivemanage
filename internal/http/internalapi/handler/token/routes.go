@@ -1,6 +1,7 @@
 package token
 
 import (
+	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/auth"
 	"github.com/fivemanage/lite/internal/service/token"
@@ -11,8 +12,9 @@ type handler struct{ tokenService *token.Service }
 
 func RegisterRoutes(group *echo.Group, tokenService *token.Service, authService *auth.Service) {
 	handler := handler{tokenService: tokenService}
-	adminOnly := middleware.OrganizationAdmin(authService)
-	group.POST("/:organizationId/token", handler.createTokenHandler, adminOnly)
-	group.GET("/:organizationId/token", handler.listTokensHandler)
-	group.DELETE("/:organizationId/token/:id", handler.deleteTokenHandler, adminOnly)
+	readTokens := middleware.OrganizationPermission(authService, api.PermissionModuleTokens, api.PermissionActionRead)
+	writeTokens := middleware.OrganizationPermission(authService, api.PermissionModuleTokens, api.PermissionActionWrite)
+	group.POST("/:organizationId/token", handler.createTokenHandler, writeTokens)
+	group.GET("/:organizationId/token", handler.listTokensHandler, readTokens)
+	group.DELETE("/:organizationId/token/:id", handler.deleteTokenHandler, writeTokens)
 }

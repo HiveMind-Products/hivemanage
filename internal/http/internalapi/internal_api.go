@@ -32,7 +32,7 @@ func Add(
 
 	authhander.RegisterRoutes(group, authService)
 	tokenhandler.RegisterRoutes(group, tokenService, authService)
-	organizationhandler.RegisterRoutes(group, organizationService)
+	organizationhandler.RegisterRoutes(group, organizationService, authService)
 	memberhandler.RegisterRoutes(group, memberService, authService)
 	datasethandler.RegisterRoutes(group, datasetService, authService)
 	registerStorageApi(group, fileService, authService)

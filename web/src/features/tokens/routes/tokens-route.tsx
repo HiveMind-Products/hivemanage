@@ -4,6 +4,7 @@ import { TokensTable } from "../components/TokensTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParams } from "react-router";
 import { Params } from "@/typings/router";
+import { usePermission } from "@/features/auth/hooks/use-permission";
 
 function TokensTableSkeleton() {
   return (
@@ -29,6 +30,7 @@ function TokensTableSkeleton() {
 
 export default function TokensRoute() {
   const params = useParams<Params>();
+  const canWrite = usePermission("tokens", "write");
 
   if (!params.organizationId) {
     return <div>Organization ID is required</div>;
@@ -43,11 +45,11 @@ export default function TokensRoute() {
             Manage your API tokens to access the platform.
           </p>
         </div>
-        <CreateTokenDialog />
+        {canWrite && <CreateTokenDialog />}
       </div>
       <section>
         <Suspense fallback={<TokensTableSkeleton />}>
-          <TokensTable organizationId={params.organizationId} />
+          <TokensTable organizationId={params.organizationId} canWrite={canWrite} />
         </Suspense>
       </section>
     </main>

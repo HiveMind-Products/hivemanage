@@ -5,6 +5,7 @@ import {
   Layers,
   Settings,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 
 import {
@@ -20,54 +21,41 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { NavLink } from "react-router";
+import { NavLink, useParams } from "react-router";
 import { OrganizationSwitcher } from "@/features/app/components/OrganizationSwitcher";
 import { useSession } from "@/features/auth/api/useSession";
 import { NavUser } from "@/features/app/components/NavUser";
 import { $api } from "@/lib/api/client";
+import type { PermissionModule } from "@/typings/permissions";
 
-const items = [
-  {
-    title: "Storage",
-    url: "storage",
-    icon: Folders,
-    comingSoon: false,
-  },
-  {
-    title: "Tokens",
-    url: "tokens",
-    icon: KeyRound,
-    comingSoon: false,
-  },
-  {
-    title: "Logs",
-    url: "logs",
-    icon: Layers,
-    comingSoon: false,
-  },
-  {
-    title: "Team",
-    url: "team",
-    icon: Users,
-    comingSoon: false,
-  },
-  {
-    title: "Usage",
-    url: "#",
-    icon: ChartArea,
-    comingSoon: true,
-  },
-  {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
-    comingSoon: true,
-  },
+const items: Array<{
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  comingSoon: boolean;
+  module?: PermissionModule;
+}> = [
+  { title: "Storage", url: "storage", icon: Folders, comingSoon: false, module: "storage" },
+  { title: "Tokens", url: "tokens", icon: KeyRound, comingSoon: false, module: "tokens" },
+  { title: "Logs", url: "logs", icon: Layers, comingSoon: false, module: "logs" },
+  { title: "Team", url: "team", icon: Users, comingSoon: false, module: "team" },
+  { title: "Usage", url: "#", icon: ChartArea, comingSoon: true },
+  { title: "Settings", url: "#", icon: Settings, comingSoon: true },
 ];
 
 export function AppSidebar() {
   const session = useSession();
+  const params = useParams<{ organizationId: string }>();
   const version = $api.useQuery("get", "/dash/system/version");
+  const currentPermissions = params.organizationId
+    ? session.data?.permissionsByOrganization?.[params.organizationId]
+    : undefined;
+
+  const visibleItems = items.filter((item) => {
+    if (!item.module) return true;
+    if (session.data?.isAdmin) return true;
+    return !!currentPermissions?.[item.module]?.read;
+  });
 
   return (
     <Sidebar className="h-full">
@@ -82,13 +70,13 @@ export function AppSidebar() {
               {version.data?.update_available && (
                 <span
                   className="flex h-2 w-2 rounded-full bg-blue-600"
-                  title={`New version available: ${version.data.latest}`}
+                  title={"New version available: " + version.data.latest}
                 />
               )}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {items.map((item) => (
+                {visibleItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink to={item.url}>
@@ -96,9 +84,7 @@ export function AppSidebar() {
                         <span>{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
-                    {item.comingSoon && (
-                      <SidebarMenuBadge>Coming soon</SidebarMenuBadge>
-                    )}
+                    {item.comingSoon && <SidebarMenuBadge>Coming soon</SidebarMenuBadge>}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
