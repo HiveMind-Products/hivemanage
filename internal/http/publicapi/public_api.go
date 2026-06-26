@@ -1,6 +1,7 @@
 package publicapi
 
 import (
+	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/file"
 	"github.com/fivemanage/lite/internal/service/log"
 	"github.com/fivemanage/lite/internal/service/token"
@@ -16,7 +17,8 @@ func Add(group *echo.Group,
 	logService *log.Service,
 ) {
 	group.GET("/swagger/*", echoSwagger.WrapHandler)
+	group.Use(middleware.TokenAuth(tokenService))
 
-	registerMediaApi(group, fileService, tokenService)
-	registerLogsApi(group, logService, tokenService)
+	registerMediaApi(group, fileService)
+	registerLogsApi(group, logService)
 }

@@ -8,16 +8,14 @@ import (
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/clickhouse"
 	"github.com/fivemanage/lite/internal/http/httputil"
-	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/log"
-	"github.com/fivemanage/lite/internal/service/token"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
 )
 
-func registerLogsApi(group *echo.Group, logService *log.Service, tokenService *token.Service) {
+func registerLogsApi(group *echo.Group, logService *log.Service) {
 	h := &logsHandler{logService: logService}
-	group.POST("/logs", h.submitLogs, echoMiddleware.BodyLimit("2M"), middleware.TokenAuth(tokenService))
+	group.POST("/logs", h.submitLogs, echoMiddleware.BodyLimit("2M"))
 }
 
 type logsHandler struct{ logService *log.Service }

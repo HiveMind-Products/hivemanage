@@ -7,8 +7,6 @@ import (
 	"github.com/fivemanage/lite/internal/http/appctx"
 )
 
-var errOrganizationContextRequired = errors.New("organization context required")
-
 func resolveOrgID(cc *appctx.Context) (string, error) {
 	orgID := cc.Param("organizationId")
 	if orgID == "" {
@@ -20,7 +18,7 @@ func resolveOrgID(cc *appctx.Context) (string, error) {
 		}
 	}
 	if orgID == "" {
-		return "", errOrganizationContextRequired
+		return "", errors.New("organization context required")
 	}
 	return orgID, nil
 }
