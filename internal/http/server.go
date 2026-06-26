@@ -21,7 +21,6 @@ import (
 	"github.com/fivemanage/lite/internal/service/organization"
 	"github.com/fivemanage/lite/internal/service/system"
 	"github.com/fivemanage/lite/internal/service/token"
-	"github.com/fivemanage/lite/pkg/cache"
 	"github.com/fivemanage/lite/pkg/otel"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
@@ -47,7 +46,6 @@ func NewServer(
 	logService *log.Service,
 	datasetService *dataset.Service,
 	systemService *system.Service,
-	memcache *cache.Cache,
 ) *echo.Echo {
 	app := echo.New()
 	app.Debug = os.Getenv("ENV") == "dev"
@@ -103,7 +101,7 @@ func NewServer(
 		datasetService,
 		systemService,
 	)
-	publicapi.Add(apiGroup, fileService, tokenService, logService, memcache)
+	publicapi.Add(apiGroup, fileService, tokenService, logService)
 
 	return app
 }

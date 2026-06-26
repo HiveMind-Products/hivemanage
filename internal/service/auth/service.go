@@ -283,11 +283,8 @@ func (r *Service) permissionsByOrganization(ctx context.Context, userID int64) (
 	for _, member := range members {
 		role, normalizedPermissions, err := permissions.Normalize(member.Role, member.Permissions)
 		if err != nil {
-			role = api.MemberRoleViewer
+			role = permissions.RoleOrViewer(member.Role)
 			normalizedPermissions = permissions.Preset(role)
-		}
-		if role == api.MemberRoleAdmin {
-			normalizedPermissions = permissions.Preset(api.MemberRoleAdmin)
 		}
 		result[member.OrganizationID] = normalizedPermissions
 	}
@@ -324,10 +321,7 @@ func (r *Service) IsOrganizationAdmin(ctx context.Context, userID int64, organiz
 		return false, err
 	}
 
-	role, err := permissions.NormalizeRole(member.Role)
-	if err != nil {
-		return false, nil
-	}
+	role := permissions.RoleOrViewer(member.Role)
 	return role == api.MemberRoleAdmin, nil
 }
 

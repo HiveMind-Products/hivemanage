@@ -107,7 +107,7 @@ func CountAdmins(ctx context.Context, db *bun.DB, organizationID string) (int, e
 	return db.NewSelect().
 		Model((*database.OrganizationMember)(nil)).
 		Where("organization_id = ?", organizationID).
-		Where("role = ?", "ADMIN").
+		Where("role = ?", api.MemberRoleAdmin).
 		Count(ctx)
 }
 

@@ -22,7 +22,6 @@ import (
 	"github.com/fivemanage/lite/internal/service/system"
 	"github.com/fivemanage/lite/internal/service/token"
 	"github.com/fivemanage/lite/migrate"
-	"github.com/fivemanage/lite/pkg/cache"
 	"github.com/fivemanage/lite/pkg/otel"
 	storages3 "github.com/fivemanage/lite/pkg/storage/s3"
 	"github.com/joho/godotenv"
@@ -116,8 +115,6 @@ var rootCmd = &cobra.Command{
 		logService := log.NewService(store, clickhouseClient, datsetService)
 		systemService := system.NewService(Version, viper.GetString("bucket-domain"))
 
-		memcache := cache.NewMemcache(5 * time.Minute)
-
 		server := http.NewServer(
 			authService,
 			tokenService,
@@ -127,7 +124,6 @@ var rootCmd = &cobra.Command{
 			logService,
 			datsetService,
 			systemService,
-			memcache,
 		)
 
 		// todo: check if we have an admin user

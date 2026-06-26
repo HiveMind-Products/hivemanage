@@ -8,12 +8,12 @@ function fallbackTarget(organizationId: string | undefined, fallback: string) {
   return "/app/" + organizationId + (fallback ? "/" + fallback : "");
 }
 
-export function PermissionRoute({ module }: { module: PermissionModule }) {
+export function PermissionRoute({ module, children }: { module: PermissionModule; children?: ReactNode }) {
   const { organizationId } = useParams<{ organizationId: string }>();
   const { data: session } = useSession();
   const canRead = usePermission(module, "read");
 
-  if (canRead) return <Outlet />;
+  if (canRead) return <>{children ?? <Outlet />}</>;
 
   const fallback = firstReadablePath(
     organizationId ? session?.permissionsByOrganization?.[organizationId] : undefined,
@@ -21,15 +21,4 @@ export function PermissionRoute({ module }: { module: PermissionModule }) {
   return <Navigate to={fallbackTarget(organizationId, fallback)} replace />;
 }
 
-export function PermissionElement({ module, children }: { module: PermissionModule; children: ReactNode }) {
-  const { organizationId } = useParams<{ organizationId: string }>();
-  const { data: session } = useSession();
-  const canRead = usePermission(module, "read");
-
-  if (canRead) return <>{children}</>;
-
-  const fallback = firstReadablePath(
-    organizationId ? session?.permissionsByOrganization?.[organizationId] : undefined,
-  );
-  return <Navigate to={fallbackTarget(organizationId, fallback)} replace />;
-}
+export const PermissionElement = PermissionRoute;

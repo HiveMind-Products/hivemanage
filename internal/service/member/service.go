@@ -32,23 +32,7 @@ func (s *Service) ListMembers(ctx context.Context, organizationID string) ([]*ap
 
 	members := make([]*api.OrganizationMember, 0, len(dbMembers))
 	for _, dbMember := range dbMembers {
-		role, memberPermissions, err := permissions.Normalize(dbMember.Role, dbMember.Permissions)
-		if err != nil {
-			role = api.MemberRoleViewer
-			memberPermissions = permissions.Preset(role)
-		}
-		member := &api.OrganizationMember{
-			ID:          dbMember.ID,
-			Role:        role,
-			Permissions: memberPermissions,
-		}
-
-		if dbMember.User != nil {
-			member.Email = dbMember.User.Email
-			member.Name = dbMember.User.Name
-		}
-
-		members = append(members, member)
+		members = append(members, memberResponse(&dbMember))
 	}
 
 	return members, nil
@@ -124,10 +108,7 @@ func (s *Service) UpdateMember(ctx context.Context, organizationID string, membe
 		return nil, err
 	}
 
-	currentRole, err := permissions.NormalizeRole(current.Role)
-	if err != nil {
-		currentRole = api.MemberRoleViewer
-	}
+	currentRole := permissions.RoleOrViewer(current.Role)
 	if currentRole == api.MemberRoleAdmin && role != api.MemberRoleAdmin {
 		if err := s.ensureNotLastAdmin(ctx, organizationID); err != nil {
 			return nil, err
@@ -150,10 +131,7 @@ func (s *Service) RemoveMember(ctx context.Context, organizationID string, membe
 	if err != nil {
 		return err
 	}
-	memberRole, err := permissions.NormalizeRole(member.Role)
-	if err != nil {
-		memberRole = api.MemberRoleViewer
-	}
+	memberRole := permissions.RoleOrViewer(member.Role)
 	if memberRole == api.MemberRoleAdmin {
 		if err := s.ensureNotLastAdmin(ctx, organizationID); err != nil {
 			return err
@@ -176,7 +154,7 @@ func (s *Service) ensureNotLastAdmin(ctx context.Context, organizationID string)
 func memberResponse(dbMember *database.OrganizationMember) *api.OrganizationMember {
 	role, memberPermissions, err := permissions.Normalize(dbMember.Role, dbMember.Permissions)
 	if err != nil {
-		role = api.MemberRoleViewer
+		role = permissions.RoleOrViewer(dbMember.Role)
 		memberPermissions = permissions.Preset(role)
 	}
 	member := &api.OrganizationMember{ID: dbMember.ID, Role: role, Permissions: memberPermissions}

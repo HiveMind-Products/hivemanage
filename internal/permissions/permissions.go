@@ -28,15 +28,18 @@ func NormalizeRole(role string) (string, error) {
 	}
 }
 
-func Preset(role string) api.MemberPermissions {
+func RoleOrViewer(role string) string {
 	normalizedRole, err := NormalizeRole(role)
 	if err != nil {
-		normalizedRole = api.MemberRoleViewer
+		return api.MemberRoleViewer
 	}
+	return normalizedRole
+}
 
-	switch normalizedRole {
+func Preset(role string) api.MemberPermissions {
+	switch role {
 	case api.MemberRoleAdmin:
-		return all(true, true)
+		return all()
 	case api.MemberRoleEditor:
 		return api.MemberPermissions{
 			api.PermissionModuleOverview: {Read: true},
@@ -78,14 +81,14 @@ func Normalize(role string, requested api.MemberPermissions) (string, api.Member
 	}
 
 	if normalizedRole == api.MemberRoleAdmin {
-		normalized = all(true, true)
+		normalized = all()
 	}
 
 	return normalizedRole, normalized, nil
 }
 
 func Can(role string, memberPermissions api.MemberPermissions, module string, action string) bool {
-	normalizedRole, _ := NormalizeRole(role)
+	normalizedRole := RoleOrViewer(role)
 	if normalizedRole == api.MemberRoleAdmin {
 		return true
 	}
@@ -104,10 +107,10 @@ func Can(role string, memberPermissions api.MemberPermissions, module string, ac
 	return access.Read
 }
 
-func all(read, write bool) api.MemberPermissions {
+func all() api.MemberPermissions {
 	perms := make(api.MemberPermissions, len(Modules))
 	for _, module := range Modules {
-		perms[module] = api.PermissionAccess{Read: read, Write: write}
+		perms[module] = api.PermissionAccess{Read: true, Write: true}
 	}
 	return perms
 }

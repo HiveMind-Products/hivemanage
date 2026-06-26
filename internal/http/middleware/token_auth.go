@@ -7,11 +7,10 @@ import (
 
 	internalauth "github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/service/token"
-	"github.com/fivemanage/lite/pkg/cache"
 	"github.com/labstack/echo/v4"
 )
 
-func TokenAuth(tokenService *token.Service, _ *cache.Cache) echo.MiddlewareFunc {
+func TokenAuth(tokenService *token.Service) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ctx := c.Request().Context()
