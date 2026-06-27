@@ -46,6 +46,16 @@ COPY --from=backend /app/migrate /app/migrate
 
 EXPOSE 8080
 
+# Run as the built-in non-root user provided by the distroless image.
 USER nonroot:nonroot
+
+# No Docker HEALTHCHECK is defined intentionally. This is a distroless/static
+# image with no shell and no curl/wget, and the application binary does not
+# expose a self-probe subcommand, so any shell- or tool-based HEALTHCHECK would
+# be broken. Configure health checks at the orchestrator level (Kubernetes
+# probes, ECS, compose, etc.) to hit the HTTP endpoints instead:
+#   liveness  -> GET /api/health
+#   readiness -> GET /api/ready
+# The build context is kept minimal via the repo-root .dockerignore.
 
 CMD ["/app/main"]

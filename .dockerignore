@@ -1,1 +1,35 @@
+# Keep the build context minimal so secrets and local cruft never enter the
+# image. The multi-stage Dockerfile does `COPY . .` for the Go build and builds
+# the frontend from web/, so source must stay in context -- only ignore
+# generated artifacts, local state, and secrets below.
+
+# Version control
+.git
+.gitignore
+
+# Secrets / local environment
+.env
+.env.*
+*.pem
+*.key
+
+# Local docker / compose state
+.docker
+docker-compose*.yml
+
+# Build output (regenerated inside the image)
 web/node_modules
+web/dist
+main
+
+# Temp files, caches and logs
+tmp
+*.log
+*.tmp
+.cache
+coverage.out
+
+# Editor / OS cruft
+.idea
+.vscode
+.DS_Store
