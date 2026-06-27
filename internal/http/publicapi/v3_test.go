@@ -11,6 +11,21 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func TestV3RoutesRegisterWithoutConflict(t *testing.T) {
+	// Echo panics on conflicting route shapes; ensure the static (/v3/file/base64,
+	// /v3/file/presigned-url) and wildcard (/v3/file/*) routes coexist.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("route registration panicked: %v", r)
+		}
+	}()
+	e := echo.New()
+	g := e.Group("/api")
+	registerV3PresignedUpload(g, &file.Service{})
+	registerV3FileApi(g, &file.Service{})
+	registerV3PresignedGenerate(g, &file.Service{})
+}
+
 func TestRootIsJSONArray(t *testing.T) {
 	cases := []struct {
 		body string
