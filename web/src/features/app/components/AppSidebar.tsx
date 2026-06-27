@@ -39,8 +39,8 @@ const items: Array<{
   { title: "Tokens", url: "tokens", icon: KeyRound, comingSoon: false, module: "tokens" },
   { title: "Logs", url: "logs", icon: Layers, comingSoon: false, module: "logs" },
   { title: "Team", url: "team", icon: Users, comingSoon: false, module: "team" },
-  { title: "Usage", url: "#", icon: ChartArea, comingSoon: true },
-  { title: "Settings", url: "#", icon: Settings, comingSoon: true },
+  { title: "Usage", url: "usage", icon: ChartArea, comingSoon: false, module: "overview" },
+  { title: "Settings", url: "settings", icon: Settings, comingSoon: false },
 ];
 
 export function AppSidebar() {

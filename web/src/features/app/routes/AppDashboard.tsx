@@ -8,8 +8,6 @@ export const AppDashboard: React.FC = () => {
   const { organizationId } = useParams();
   const { data: stats, isLoading } = useOrganizationStats(organizationId);
 
-  console.log(stats);
-
   if (isLoading) {
     return (
       <div className="flex flex-col gap-8">

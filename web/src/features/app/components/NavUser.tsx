@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import { useLogout } from "@/features/auth/api/useSession";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 export function NavUser({
   user,
@@ -46,6 +46,7 @@ export function NavUser({
   const { isMobile } = useSidebar();
   const { logout } = useLogout();
   const navigate = useNavigate();
+  const { organizationId } = useParams<{ organizationId: string }>();
 
   return (
     <SidebarMenu>
@@ -91,7 +92,9 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => navigate('#')}>
+              <DropdownMenuItem
+                onClick={() => navigate(organizationId ? `/app/${organizationId}/settings` : "/app")}
+              >
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>

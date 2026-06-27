@@ -11,7 +11,9 @@ import { NewOrganizationRoute } from "./features/organizations/routes/NewOrganiz
 import { OrganizationSelectRoute } from "./features/organizations/routes/OrganizationSelectRoute";
 import { Toaster } from "sonner";
 import { OrganizationTeamRoute } from "./features/organizations/routes/organization-team-route";
+import { SettingsRoute } from "./features/settings/routes/settings-route";
 import { PermissionElement, PermissionRoute } from "./features/auth/routes/PermissionRoute";
+const UsageRoute = lazy(() => import("./features/usage/routes/usage-route"));
 const StorageRoute = lazy(
   () => import("./features/files/routes/storage-route"),
 );
@@ -52,6 +54,8 @@ function App() {
                     <Route path=":datasetId" element={<LogsRoute />} />
                   </Route>
                   <Route path="team" element={<PermissionElement module="team"><OrganizationTeamRoute /></PermissionElement>} />
+                  <Route path="usage" element={<PermissionElement module="overview"><UsageRoute /></PermissionElement>} />
+                  <Route path="settings" element={<SettingsRoute />} />
                 </Route>
               </Route>
             </Route>
