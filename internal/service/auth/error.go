@@ -1,5 +1,11 @@
 package auth
 
+import "errors"
+
+// ErrDiscordAlreadyLinked is returned when the Discord account a user is trying
+// to link is already attached to a different local account.
+var ErrDiscordAlreadyLinked = errors.New("this Discord account is already linked to another user")
+
 type ErrSessionExpired struct{}
 
 func (ErrSessionExpired) Error() string {

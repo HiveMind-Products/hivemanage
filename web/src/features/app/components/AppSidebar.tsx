@@ -98,6 +98,7 @@ export function AppSidebar() {
                 name: session.data.name || session.data.username,
                 email: session.data.email || "",
                 avatar: session.data.avatar || "",
+                discordLinked: session.data.discordLinked ?? false,
               }}
             />
           )}

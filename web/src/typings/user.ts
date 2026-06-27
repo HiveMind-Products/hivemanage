@@ -8,5 +8,6 @@ export interface Session {
   email?: string;
   avatar?: string;
   isAdmin: boolean;
+  discordLinked?: boolean;
   permissionsByOrganization?: Record<string, MemberPermissions>;
 }

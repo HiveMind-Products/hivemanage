@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -95,7 +96,22 @@ func (r *handler) loginHandler(c echo.Context) error {
 const (
 	discordStateCookie = "fmlite_oauth_state"
 	inviteCookie       = "fmlite_invite"
+	oauthModeCookie    = "fmlite_oauth_mode"
+	oauthModeLink      = "link"
 )
+
+// setOAuthStateCookie stores the CSRF state for an in-flight OAuth exchange.
+func setOAuthStateCookie(cc *appctx.Context, state string) {
+	cc.SetCookie(&http.Cookie{
+		Name:     discordStateCookie,
+		Value:    state,
+		Path:     "/",
+		MaxAge:   600,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
 
 // discordLoginHandler godoc
 // @Summary      Begin Discord OAuth login
@@ -111,9 +127,31 @@ func (r *handler) discordLoginHandler(c echo.Context) error {
 		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to start login"))
 	}
 
+	setOAuthStateCookie(cc, state)
+
+	return cc.Redirect(http.StatusFound, r.authService.DiscordAuthURL(state))
+}
+
+// discordLinkHandler godoc
+// @Summary      Link Discord to the current account
+// @Description  Begin Discord OAuth to attach a Discord account to the logged-in user
+// @Tags         auth
+// @Success      302
+// @Router       /dash/auth/discord/link [get]
+func (r *handler) discordLinkHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+
+	state, err := crypt.GenerateSessionID()
+	if err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to start linking"))
+	}
+
+	setOAuthStateCookie(cc, state)
+	// Mark this exchange as a link (not a login) so the shared callback attaches
+	// the Discord account to the current session instead of logging in.
 	cc.SetCookie(&http.Cookie{
-		Name:     discordStateCookie,
-		Value:    state,
+		Name:     oauthModeCookie,
+		Value:    oauthModeLink,
 		Path:     "/",
 		MaxAge:   600,
 		HttpOnly: true,
@@ -146,6 +184,12 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 	if err != nil || stateCookie.Value == "" || stateCookie.Value != state {
 		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse("Invalid OAuth state"))
 	}
+	cc.SetCookie(&http.Cookie{Name: discordStateCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+
+	// Linking flow: attach Discord to the already-logged-in account.
+	if modeCookie, mErr := cc.Cookie(oauthModeCookie); mErr == nil && modeCookie.Value == oauthModeLink {
+		return r.discordLinkCallback(cc, ctx, code)
+	}
 
 	sessionID, userID, discordID, err := r.authService.LoginWithDiscord(ctx, code)
 	if err != nil {
@@ -157,7 +201,6 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
 	}
 
-	cc.SetCookie(&http.Cookie{Name: discordStateCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
 	cc.SetCookie(r.authService.CreateSessionCookie(sessionID))
 	cc.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
 
@@ -172,6 +215,31 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 	}
 
 	return cc.Redirect(http.StatusFound, "/")
+}
+
+// discordLinkCallback attaches the authorized Discord account to the currently
+// logged-in user, then redirects back to the app with a status flag.
+func (r *handler) discordLinkCallback(cc *appctx.Context, ctx context.Context, code string) error {
+	cc.SetCookie(&http.Cookie{Name: oauthModeCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+
+	sessionCookie, err := cc.Cookie(internalauth.SessionCookieName)
+	if err != nil || sessionCookie.Value == "" {
+		return cc.Redirect(http.StatusFound, "/auth")
+	}
+	user, err := r.authService.UserBySession(ctx, sessionCookie.Value)
+	if err != nil {
+		return cc.Redirect(http.StatusFound, "/auth")
+	}
+
+	err = r.authService.LinkDiscord(ctx, code, user.ID)
+	if errors.Is(err, auth.ErrDiscordAlreadyLinked) {
+		return cc.Redirect(http.StatusFound, "/app?discord=taken")
+	}
+	if err != nil {
+		return cc.Redirect(http.StatusFound, "/app?discord=error")
+	}
+
+	return cc.Redirect(http.StatusFound, "/app?discord=linked")
 }
 
 // inviteTokenFromCookie returns the pending invite token, if any.

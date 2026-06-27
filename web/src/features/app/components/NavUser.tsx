@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   ChevronsUpDown,
   LogOut,
+  Link as LinkIcon,
 } from "lucide-react";
 
 import {
@@ -39,6 +40,7 @@ export function NavUser({
     name: string;
     email: string;
     avatar: string;
+    discordLinked: boolean;
   };
 }) {
   const { isMobile } = useSidebar();
@@ -93,6 +95,16 @@ export function NavUser({
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>
+              {!user.discordLinked && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    window.location.href = "/api/dash/auth/discord/link";
+                  }}
+                >
+                  <LinkIcon />
+                  Link Discord
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>

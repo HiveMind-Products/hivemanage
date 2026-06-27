@@ -169,31 +169,42 @@ func (r *Service) DiscordAuthURL(state string) string {
 	return r.config.discord.AuthCodeURL(state)
 }
 
+// exchangeDiscordUser exchanges an OAuth code and fetches the authenticated
+// Discord user.
+func (r *Service) exchangeDiscordUser(ctx context.Context, code string) (*discordUser, error) {
+	token, err := r.config.discord.Exchange(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := r.config.discord.Client(ctx, token).Get("https://discord.com/api/users/@me")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("discord user request failed: %s", resp.Status)
+	}
+
+	var du discordUser
+	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
+		return nil, err
+	}
+	if du.ID == "" {
+		return nil, errors.New("discord returned no user id")
+	}
+
+	return &du, nil
+}
+
 // LoginWithDiscord exchanges an OAuth code for the Discord user, upserts a local
 // user linked by (auth_provider=discord, auth_id=<discord id>), and returns a new
 // session ID along with the local user ID and the Discord account ID. It never
 // merges into an existing account by email.
 func (r *Service) LoginWithDiscord(ctx context.Context, code string) (sessionID string, userID int64, discordID string, err error) {
-	token, err := r.config.discord.Exchange(ctx, code)
+	du, err := r.exchangeDiscordUser(ctx, code)
 	if err != nil {
 		return "", 0, "", err
-	}
-
-	resp, err := r.config.discord.Client(ctx, token).Get("https://discord.com/api/users/@me")
-	if err != nil {
-		return "", 0, "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", 0, "", fmt.Errorf("discord user request failed: %s", resp.Status)
-	}
-
-	var du discordUser
-	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
-		return "", 0, "", err
-	}
-	if du.ID == "" {
-		return "", 0, "", errors.New("discord returned no user id")
 	}
 
 	user := new(database.User)
@@ -229,6 +240,37 @@ func (r *Service) LoginWithDiscord(ctx context.Context, code string) (sessionID 
 	}
 
 	return sessionID, user.ID, du.ID, nil
+}
+
+// LinkDiscord attaches a Discord account to an existing local user (e.g. a
+// password account adding Discord login). It fails with ErrDiscordAlreadyLinked
+// if the Discord account is already linked to a different user.
+func (r *Service) LinkDiscord(ctx context.Context, code string, userID int64) error {
+	du, err := r.exchangeDiscordUser(ctx, code)
+	if err != nil {
+		return err
+	}
+
+	existing := new(database.User)
+	err = r.db.NewSelect().Model(existing).
+		Where("auth_provider = ?", "discord").
+		Where("auth_id = ?", du.ID).
+		Scan(ctx)
+	if err == nil && existing.ID != userID {
+		return ErrDiscordAlreadyLinked
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	q := r.db.NewUpdate().Model((*database.User)(nil)).
+		Set("auth_provider = ?", "discord").
+		Set("auth_id = ?", du.ID)
+	if du.Avatar != "" {
+		q = q.Set("avatar = ?", du.Avatar)
+	}
+	_, err = q.Where("id = ?", userID).Exec(ctx)
+	return err
 }
 
 // we probably dont need this function anymore...maybe
@@ -340,6 +382,7 @@ func (r *Service) UserBySession(ctx context.Context, sessionID string) (*api.Use
 		Name:                      nullString(session.User.Name),
 		Email:                     nullString(session.User.Email),
 		Avatar:                    nullString(session.User.Avatar),
+		DiscordLinked:             session.User.AuthProvider == "discord" && session.User.AuthID != "",
 		PermissionsByOrganization: permissionsByOrganization,
 	}, nil
 }

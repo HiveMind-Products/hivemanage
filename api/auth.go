@@ -17,5 +17,6 @@ type User struct {
 	Email                     *string                      `json:"email"`
 	Avatar                    *string                      `json:"avatar"`
 	IsAdmin                   bool                         `json:"isAdmin"`
+	DiscordLinked             bool                         `json:"discordLinked"`
 	PermissionsByOrganization map[string]MemberPermissions `json:"permissionsByOrganization"`
 }

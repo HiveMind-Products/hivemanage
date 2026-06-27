@@ -1,7 +1,9 @@
-import { Navigate, NavLink, useNavigate } from "react-router";
+import { Navigate, NavLink, useNavigate, useSearchParams } from "react-router";
 import { useOrganizations } from "../api/useOrganizations";
 import { useSession, useLogout } from "@/features/auth/api/useSession";
 import { CirclePlus, ChevronRight, LogOut } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardHeader,
@@ -17,6 +19,18 @@ export function OrganizationSelectRoute() {
   const { logout } = useLogout();
   const orgCount = data?.length || 0;
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const discord = searchParams.get("discord");
+    if (!discord) return;
+    if (discord === "linked") toast.success("Discord account linked");
+    else if (discord === "taken") toast.error("That Discord account is already linked to another user");
+    else if (discord === "error") toast.error("Failed to link Discord account");
+    const next = new URLSearchParams(searchParams);
+    next.delete("discord");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   if (!session.data && !session.isPending) {
     return <Navigate to="/auth" />;
