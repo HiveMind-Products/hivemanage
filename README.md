@@ -58,11 +58,89 @@ The application is configured via environment variables.
 | `AWS_ENDPOINT` | S3 endpoint URL | - |
 | `AWS_BUCKET` | S3 bucket name | - |
 | `AWS_REGION` | S3 region | - |
+| `BUCKET_DOMAIN` | Public CDN base URL for served files. Used as the V3 `url` field; the V3 `originalUrl` is derived from `AWS_ENDPOINT`/`AWS_BUCKET`. | - |
 | `CLICKHOUSE_HOST` | ClickHouse host address | `localhost:19000` |
 | `CLICKHOUSE_USERNAME` | ClickHouse username | `default` |
 | `CLICKHOUSE_PASSWORD` | ClickHouse password | `password` |
 | `CLICKHOUSE_DATABASE` | ClickHouse database name | `default` |
 | `ENV` | Environment mode (`production` or `dev`) | `dev` |
+
+---
+
+## Public API (V3)
+
+The public API is compatible with the [Fivemanage V3 API](https://docs.fivemanage.com/api-reference/introduction). All routes are served under `/api` and authenticated with an organization API token (created on the dashboard Tokens page):
+
+```
+Authorization: <YOUR_API_TOKEN>
+```
+
+Successful responses use the envelope `{ "status": "ok", "data": { ... } }`; errors use `{ "error": "..." }` with an appropriate status code (`400`, `401`, `404`, `413`, `500`).
+
+### Files
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v3/file` | Multipart upload (file field is always `file`); optional `filename`, `path`, `metadata` (JSON string), `retentionExempt`. |
+| `POST` | `/api/v3/file/base64` | JSON upload `{ base64, filename?, path?, metadata?, retentionExempt? }` (accepts data-URI). |
+| `GET` | `/api/v3/file` | List files: `page` (1), `limit` (50, max 100), `type`, `path`. |
+| `GET` | `/api/v3/file/*` | Get a file by id or storage key. |
+| `DELETE` | `/api/v3/file/*` | Delete a file by id or storage key. |
+| `GET` | `/api/v3/file/presigned-url` | Create a presigned upload URL; optional `expiresAt` (unix), `path`. Default expiry 15 min. |
+| `POST` | `/api/v3/file/presigned-url/:token` | Upload via a presigned URL. Authenticated by the token, **not** an API key. |
+
+Upload responses return `data: { id, url, originalUrl }`. `originalUrl` is the default storage URL; `url` uses `BUCKET_DOMAIN` (CDN) when configured. `FileItemV3` (list/get) is `{ id, filename, type, size, url, originalUrl, metadata }`.
+
+### Logging
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v3/logs` | Ingest logs. The body **must** be a JSON array of `{ level, message, resource?, timestamp?, metadata? }`. The target dataset is set via the `X-Fivemanage-Dataset` header. |
+
+### V2 → V3 mapping
+
+The legacy V2 routes still work as deprecated aliases (they emit a `Deprecation: true` response header and reuse the V3 logic internally):
+
+| V2 (deprecated) | V3 |
+|-----------------|----|
+| `POST /api/image`, `/api/video`, `/api/audio`, `/api/file` | `POST /api/v3/file` |
+| `POST /api/logs` (single object **or** array) | `POST /api/v3/logs` (array only) |
+
+The legacy media routes keep their original flat `{ "url": ... }` response shape; `/api/logs` additionally accepts a single log object and wraps it into a one-element batch.
+
+### Examples
+
+```bash
+# Multipart upload
+curl -X POST https://your-host/api/v3/file \
+  -H "Authorization: $API_TOKEN" \
+  -F "file=@photo.png" \
+  -F "path=avatars" \
+  -F 'metadata={"alt":"profile"}'
+
+# Base64 upload
+curl -X POST https://your-host/api/v3/file/base64 \
+  -H "Authorization: $API_TOKEN" -H "Content-Type: application/json" \
+  -d '{"base64":"<BASE64>","filename":"note.txt"}'
+
+# List images
+curl "https://your-host/api/v3/file?type=image&limit=20" -H "Authorization: $API_TOKEN"
+
+# Get / delete by id
+curl https://your-host/api/v3/file/<id> -H "Authorization: $API_TOKEN"
+curl -X DELETE https://your-host/api/v3/file/<id> -H "Authorization: $API_TOKEN"
+
+# Presigned URL: generate, then upload without an API key
+PRESIGNED=$(curl -s "https://your-host/api/v3/file/presigned-url" \
+  -H "Authorization: $API_TOKEN" | jq -r '.data.presignedUrl')
+curl -X POST "$PRESIGNED" -F "file=@clip.mp4"
+
+# Ingest logs (array only)
+curl -X POST https://your-host/api/v3/logs \
+  -H "Authorization: $API_TOKEN" -H "Content-Type: application/json" \
+  -H "X-Fivemanage-Dataset: my-dataset" \
+  -d '[{"level":"info","message":"hello","metadata":{"requestId":"abc"}}]'
+```
 
 ---
 
