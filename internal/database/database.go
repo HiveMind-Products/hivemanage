@@ -47,6 +47,22 @@ type OrganizationMember struct {
 	Organization   *Organization         `bun:"rel:belongs-to,join:organization_id=id"`
 }
 
+type Invite struct {
+	bun.BaseModel   `bun:"table:invite"`
+	ID              string                `bun:"id,pk"`
+	OrganizationID  string                `bun:"organization_id"`
+	Role            string                `bun:"role"`
+	Permissions     api.MemberPermissions `bun:"permissions,type:jsonb"`
+	DiscordID       string                `bun:"discord_id"`
+	DiscordUsername string                `bun:"discord_username"`
+	Email           string                `bun:"email"`
+	CreatedBy       int64                 `bun:"created_by"`
+	AcceptedBy      int64                 `bun:"accepted_by"`
+	ExpiresAt       *time.Time            `bun:"expires_at"`
+	AcceptedAt      *time.Time            `bun:"accepted_at"`
+	CreatedAt       time.Time             `bun:"created_at"`
+}
+
 type Token struct {
 	bun.BaseModel  `bun:"table:token"`
 	ID             int64         `bun:"id,pk,autoincrement"`
