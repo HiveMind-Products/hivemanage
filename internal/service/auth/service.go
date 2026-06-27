@@ -508,7 +508,10 @@ func (r *Service) LogoutUser(ctx context.Context, sessionID string) error {
 }
 
 func (r *Service) CreateSessionCookie(sessionID string) *http.Cookie {
-	isProduction := os.Getenv("ENV") == "production"
+	// Default to Secure cookies everywhere except explicit local dev, so a
+	// staging or misconfigured ("" / "staging") ENV does not ship cookies over
+	// plaintext.
+	isProduction := os.Getenv("ENV") != "dev"
 	return &http.Cookie{
 		Name:     auth.SessionCookieName,
 		Value:    sessionID,
@@ -521,7 +524,10 @@ func (r *Service) CreateSessionCookie(sessionID string) *http.Cookie {
 }
 
 func (r *Service) CreateCSRFCookie(token string) *http.Cookie {
-	isProduction := os.Getenv("ENV") == "production"
+	// Default to Secure cookies everywhere except explicit local dev, so a
+	// staging or misconfigured ("" / "staging") ENV does not ship cookies over
+	// plaintext.
+	isProduction := os.Getenv("ENV") != "dev"
 	return &http.Cookie{
 		Name:     auth.CSRFCookieName,
 		Value:    token,

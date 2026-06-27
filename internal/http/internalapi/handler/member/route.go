@@ -12,10 +12,11 @@ import (
 type handler struct {
 	memberService *member.Service
 	inviteService *inviteservice.Service
+	authService   *auth.Service
 }
 
 func RegisterRoutes(group *echo.Group, memberService *member.Service, authService *auth.Service, inviteService *inviteservice.Service) {
-	h := handler{memberService: memberService, inviteService: inviteService}
+	h := handler{memberService: memberService, inviteService: inviteService, authService: authService}
 	readTeam := middleware.OrganizationPermission(authService, api.PermissionModuleTeam, api.PermissionActionRead)
 	writeTeam := middleware.OrganizationPermission(authService, api.PermissionModuleTeam, api.PermissionActionWrite)
 	group.GET("/organization/:organizationId/member", h.listMembersHandler, readTeam)

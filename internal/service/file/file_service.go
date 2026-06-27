@@ -86,7 +86,7 @@ func (s *Service) CreateFileV3(ctx context.Context, organizationID string, file 
 	if err != nil {
 		return nil, err
 	}
-	return s.assetToFileItem(asset), nil
+	return s.assetToFileItem(ctx, asset), nil
 }
 
 func (s *Service) createAsset(ctx context.Context, organizationID string, file multipart.File, fileHeader *multipart.FileHeader, params CreateFileV3Params) (*database.Asset, error) {
@@ -119,21 +119,21 @@ func (s *Service) createAsset(ctx context.Context, organizationID string, file m
 		Metadata:        params.Metadata,
 		RetentionExempt: params.RetentionExempt,
 	}
-	tx, err := filequery.Create(ctx, s.db, asset)
-	if err != nil {
-		return nil, err
-	}
 	if _, err := file.Seek(0, 0); err != nil {
-		_ = tx.Rollback()
 		return nil, UploadStorageError{ErrorMsg: err.Error()}
 	}
+	// Upload to object storage first. We must not hold a DB transaction (and its
+	// pooled connection) open across a potentially large, slow upload — under
+	// concurrent uploads that exhausts the connection pool and can deadlock.
 	if err := s.storage.UploadFile(ctx, file, key, mimeType); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			slog.Error("FileService.createAsset rollback", "organization_id", organizationID, "err", rbErr)
-		}
 		return nil, UploadStorageError{ErrorMsg: err.Error()}
 	}
-	if err := tx.Commit(); err != nil {
+	// Persist the metadata row after a successful upload. If the insert fails,
+	// best-effort delete the just-uploaded object so it does not orphan.
+	if err := filequery.Insert(ctx, s.db, asset); err != nil {
+		if delErr := s.storage.DeleteFile(ctx, key); delErr != nil {
+			slog.Error("FileService.createAsset orphan cleanup failed", "organization_id", organizationID, "key", key, "err", delErr)
+		}
 		return nil, err
 	}
 	return asset, nil
@@ -172,8 +172,8 @@ func composeFileURLs(bucketDomain, defaultStorageURL, key string) (string, strin
 	return url, originalURL
 }
 
-func (s *Service) assetToFileItem(asset *database.Asset) *api.FileItemV3 {
-	url, originalURL := s.buildFileURLs(context.Background(), asset.Key)
+func (s *Service) assetToFileItem(ctx context.Context, asset *database.Asset) *api.FileItemV3 {
+	url, originalURL := s.buildFileURLs(ctx, asset.Key)
 	return &api.FileItemV3{
 		ID:          asset.ID,
 		Filename:    asset.OriginalName,

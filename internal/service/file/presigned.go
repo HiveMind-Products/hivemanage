@@ -16,6 +16,10 @@ import (
 // the caller does not supply an explicit expiresAt.
 const DefaultPresignedExpiry = 15 * time.Minute
 
+// MaxPresignedExpiry caps how far in the future a presigned upload token may be
+// valid, so a caller cannot mint an effectively permanent upload credential.
+const MaxPresignedExpiry = 24 * time.Hour
+
 var (
 	// ErrPresignedInvalid is returned for a malformed or tampered presigned token.
 	ErrPresignedInvalid = errors.New("invalid presigned token")
@@ -56,14 +60,29 @@ func VerifyPresignedToken(secret, token string, now int64) (org string, path str
 	if err := json.Unmarshal(payload, &claims); err != nil || claims.Org == "" {
 		return "", "", ErrPresignedInvalid
 	}
-	if claims.Exp != 0 && now > claims.Exp {
+	// A token must carry a positive expiry; a missing/zero exp is treated as
+	// invalid rather than "never expires".
+	if claims.Exp <= 0 {
+		return "", "", ErrPresignedInvalid
+	}
+	if now > claims.Exp {
 		return "", "", ErrPresignedExpired
 	}
 	return claims.Org, claims.Path, nil
 }
 
 // CreatePresignedToken issues a presigned-upload token for the organization.
+// The expiry is clamped to (now, now+MaxPresignedExpiry] so callers cannot mint
+// already-expired or effectively permanent tokens.
 func (s *Service) CreatePresignedToken(org string, expiresAt time.Time, path string) string {
+	now := time.Now()
+	maxExp := now.Add(MaxPresignedExpiry)
+	if expiresAt.After(maxExp) {
+		expiresAt = maxExp
+	}
+	if !expiresAt.After(now) {
+		expiresAt = now.Add(DefaultPresignedExpiry)
+	}
 	return BuildPresignedToken(presignedSecret(), org, path, expiresAt.Unix())
 }
 

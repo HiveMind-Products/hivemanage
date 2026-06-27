@@ -60,13 +60,33 @@ func (r *handler) addMemberHandler(c echo.Context) error {
 		return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 	}
 
-	resp, err := r.memberService.AddMember(ctx, organizationID, &data)
+	actorIsAdmin := r.isActorAdmin(cc, organizationID)
+	resp, err := r.memberService.AddMember(ctx, organizationID, &data, actorIsAdmin)
 	if err != nil {
 		slog.Error("failed to add member", "err", err)
-		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
+		if errors.Is(err, memberservice.ErrEscalation) {
+			return cc.JSON(403, httputil.ErrorResponse(err.Error()))
+		}
+		return cc.JSON(500, httputil.ErrorResponse("failed to add member"))
 	}
 
 	return cc.JSON(200, httputil.Response(resp))
+}
+
+// isActorAdmin reports whether the authenticated caller is an admin of the
+// organization. It fails closed (returns false) on any lookup error so that an
+// authorization check failure can never grant escalation.
+func (r *handler) isActorAdmin(cc *appctx.Context, organizationID string) bool {
+	user := cc.User()
+	if user == nil {
+		return false
+	}
+	isAdmin, err := r.authService.IsOrganizationAdmin(cc.Request().Context(), user.ID, organizationID)
+	if err != nil {
+		slog.Error("failed to check organization admin", "err", err)
+		return false
+	}
+	return isAdmin
 }
 
 // updateMemberHandler godoc
@@ -99,13 +119,17 @@ func (r *handler) updateMemberHandler(c echo.Context) error {
 		return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 	}
 
-	updated, err := r.memberService.UpdateMember(ctx, organizationID, memberID, &data)
+	actorIsAdmin := r.isActorAdmin(cc, organizationID)
+	updated, err := r.memberService.UpdateMember(ctx, organizationID, memberID, &data, actorIsAdmin)
 	if err != nil {
 		slog.Error("failed to update member", "err", err)
 		if errors.Is(err, memberservice.ErrLastAdmin) {
 			return cc.JSON(400, httputil.ErrorResponse(err.Error()))
 		}
-		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
+		if errors.Is(err, memberservice.ErrEscalation) {
+			return cc.JSON(403, httputil.ErrorResponse(err.Error()))
+		}
+		return cc.JSON(500, httputil.ErrorResponse("failed to update member"))
 	}
 
 	return cc.JSON(200, httputil.Response(updated))
