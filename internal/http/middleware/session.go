@@ -18,7 +18,13 @@ func Session(authService *auth.Service) echo.MiddlewareFunc {
 			orgID := cc.Param("organizationId")
 
 			path := cc.Request().URL.Path
-			if path == "/api/dash/auth/login" || path == "/api/dash/auth/register" {
+			switch path {
+			// Public auth routes: these establish a session, so they must not
+			// require one. The Discord OAuth start/callback are part of login.
+			case "/api/dash/auth/login",
+				"/api/dash/auth/register",
+				"/api/dash/auth/discord",
+				"/api/dash/auth/discord/callback":
 				return next(cc)
 			}
 
