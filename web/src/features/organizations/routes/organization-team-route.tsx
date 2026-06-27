@@ -262,26 +262,28 @@ function PermissionMatrix({
   }
 
   return (
-    <div className={compact ? "grid gap-2" : "grid gap-2 md:grid-cols-5"}>
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
       {rows.map((module) => (
         <div key={module} className="rounded-md border p-2">
-          <div className="mb-2 text-xs font-medium">{moduleLabels[module]}</div>
-          <label className="flex items-center gap-2 text-xs">
-            <Checkbox
-              checked={!!permissions[module]?.read}
-              disabled={disabled}
-              onCheckedChange={(checked) => setAccess(module, "read", checked === true)}
-            />
-            Read
-          </label>
-          <label className="mt-2 flex items-center gap-2 text-xs">
-            <Checkbox
-              checked={!!permissions[module]?.write}
-              disabled={disabled}
-              onCheckedChange={(checked) => setAccess(module, "write", checked === true)}
-            />
-            Write
-          </label>
+          <div className="mb-1.5 text-xs font-medium">{moduleLabels[module]}</div>
+          <div className={compact ? "flex flex-wrap gap-x-3 gap-y-1" : "space-y-2"}>
+            <label className="flex items-center gap-1.5 text-xs">
+              <Checkbox
+                checked={!!permissions[module]?.read}
+                disabled={disabled}
+                onCheckedChange={(checked) => setAccess(module, "read", checked === true)}
+              />
+              Read
+            </label>
+            <label className="flex items-center gap-1.5 text-xs">
+              <Checkbox
+                checked={!!permissions[module]?.write}
+                disabled={disabled}
+                onCheckedChange={(checked) => setAccess(module, "write", checked === true)}
+              />
+              Write
+            </label>
+          </div>
         </div>
       ))}
     </div>
