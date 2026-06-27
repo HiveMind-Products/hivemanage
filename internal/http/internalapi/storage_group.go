@@ -60,7 +60,8 @@ func (h *storageHandler) listStorageFiles(c echo.Context) error {
 			)
 		}
 
-		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to list storage files", "organization_id", organizationID, "err", err)
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to list storage files"))
 	}
 
 	return c.JSON(200, httputil.Response(assetData))
@@ -90,7 +91,8 @@ func (h *storageHandler) getStorageFile(c echo.Context) error {
 			)
 		}
 
-		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to get storage file", "organization_id", organizationID, "file_id", fileID, "err", err)
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to get storage file"))
 	}
 
 	return c.JSON(200, httputil.Response(assetData))
@@ -113,7 +115,8 @@ func (h *storageHandler) getStorageFileURL(c echo.Context) error {
 	fileID := c.Param("fileId")
 	url, err := h.fileService.SignedURL(ctx, organizationID, fileID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to get storage file url", "organization_id", organizationID, "file_id", fileID, "err", err)
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to get storage file URL"))
 	}
 	return c.JSON(http.StatusOK, httputil.Response(&api.AssetURLResponse{URL: url}))
 }
@@ -123,7 +126,8 @@ func (h *storageHandler) deleteStorageFile(c echo.Context) error {
 	organizationID := c.Param("organizationId")
 	fileID := c.Param("fileId")
 	if err := h.fileService.DeleteStorageFile(ctx, organizationID, fileID); err != nil {
-		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to delete storage file", "organization_id", organizationID, "file_id", fileID, "err", err)
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to delete storage file"))
 	}
 	return c.JSON(http.StatusOK, httputil.Response(nil))
 }
@@ -157,7 +161,7 @@ func (h *storageHandler) uploadStorageFile(c echo.Context) error {
 			)
 		}
 
-		return echo.NewHTTPError(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+		return echo.NewHTTPError(http.StatusInternalServerError, httputil.ErrorResponse("Failed to upload storage file"))
 	}
 
 	return c.JSON(http.StatusOK, httputil.Response("File uploaded successfully"))

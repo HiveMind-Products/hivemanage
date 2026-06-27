@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -27,7 +28,7 @@ func (c *Client) QueryLog(ctx context.Context, organizationID, datasetID, logID 
 
 	defer func() {
 		if err := query.Close(); err != nil {
-			fmt.Println("error closing rows", err)
+			slog.Error("error closing clickhouse rows", "err", err)
 		}
 	}()
 
@@ -81,7 +82,7 @@ func (c *Client) QueryLogs(ctx context.Context, organizationID, datasetID string
 
 	defer func() {
 		if err := rows.Close(); err != nil {
-			fmt.Println(err)
+			slog.Error("error closing clickhouse rows", "err", err)
 		}
 	}()
 
@@ -127,13 +128,12 @@ func (r *Client) QueryLogFields(ctx context.Context, organizationID, datasetID s
 
 	query, err := r.conn.Query(chCtx, "SELECT DISTINCT Key, Type FROM log_keys WHERE TeamId = {TeamId:String} AND DatasetId = {DatasetId:String}")
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	defer func() {
 		if err := query.Close(); err != nil {
-			fmt.Println(err)
+			slog.Error("error closing clickhouse rows", "err", err)
 		}
 	}()
 
@@ -147,7 +147,6 @@ func (r *Client) QueryLogFields(ctx context.Context, organizationID, datasetID s
 
 		err := query.Scan(&field, &fieldType)
 		if err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 

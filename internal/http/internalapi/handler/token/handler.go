@@ -32,15 +32,15 @@ func (r *handler) createTokenHandler(c echo.Context) error {
 
 	var data api.CreateTokenRequest
 	if err := validator.BindAndValidate(cc, &data); err != nil {
-		slog.Error("failed to bind and validate token", "err", err)
-		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
+		return err
 	}
 
 	data.OrganizationID = organizationID
 	user := cc.User()
 	apiToken, err := r.tokenService.CreateToken(ctx, &data, user.ID)
 	if err != nil {
-		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to create token", "organization_id", organizationID, "err", err)
+		return cc.JSON(500, httputil.ErrorResponse("Failed to create token"))
 	}
 
 	// we return the apiToken as a one-time thing
@@ -68,7 +68,8 @@ func (r *handler) listTokensHandler(c echo.Context) error {
 
 	tokens, err := r.tokenService.ListTokens(ctx, organizationID)
 	if err != nil {
-		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to list tokens", "organization_id", organizationID, "err", err)
+		return cc.JSON(500, httputil.ErrorResponse("Failed to list tokens"))
 	}
 
 	return cc.JSON(200, httputil.Response(tokens))
@@ -93,7 +94,8 @@ func (r *handler) deleteTokenHandler(c echo.Context) error {
 
 	err := r.tokenService.DeleteToken(ctx, organizationID, tokenID)
 	if err != nil {
-		return cc.JSON(500, httputil.ErrorResponse(err.Error()))
+		slog.Error("failed to delete token", "organization_id", organizationID, "token_id", tokenID, "err", err)
+		return cc.JSON(500, httputil.ErrorResponse("Failed to delete token"))
 	}
 
 	return cc.JSON(200, httputil.Response(nil))

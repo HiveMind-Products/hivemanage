@@ -1,7 +1,6 @@
 package validator
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -22,12 +21,10 @@ func (cv *CustomValidator) Validate(i interface{}) error {
 
 func BindAndValidate(c echo.Context, i interface{}) error {
 	if err := c.Bind(i); err != nil {
-		fmt.Println("error binding", err.Error())
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	if err := c.Validate(i); err != nil {
-		fmt.Println("error validating", err.Error())
 		return err
 	}
 
