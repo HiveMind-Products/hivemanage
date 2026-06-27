@@ -21,4 +21,5 @@ func Add(group *echo.Group,
 
 	registerMediaApi(group, fileService)
 	registerLogsApi(group, logService)
+	registerV3FileApi(group, fileService)
 }
