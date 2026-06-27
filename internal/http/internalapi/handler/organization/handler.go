@@ -90,6 +90,81 @@ func (r *handler) getOrganizationHandler(c echo.Context) error {
 	return cc.JSON(200, httputil.Response(organization))
 }
 
+// updateOrganizationHandler godoc
+// @Summary      Update organization
+// @Description  Rename an organization
+// @Tags         organization
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                         true  "Organization ID"
+// @Param        data  body      api.UpdateOrganizationRequest  true  "Update Organization Request"
+// @Success      200   {object}  httputil.ResponseData{data=api.Organization}
+// @Failure      500   {object}  httputil.ErrorResponseData
+// @Router       /dash/organization/{id} [patch]
+func (r *handler) updateOrganizationHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+	id := cc.Param("organizationId")
+
+	var data api.UpdateOrganizationRequest
+	if err := validator.BindAndValidate(cc, &data); err != nil {
+		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse(err.Error()))
+	}
+
+	organization, err := r.organizationService.UpdateOrganization(ctx, id, data.Name)
+	if err != nil {
+		slog.Error("failed to update organization", "err", err)
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+	}
+
+	return cc.JSON(http.StatusOK, httputil.Response(organization))
+}
+
+// deleteOrganizationHandler godoc
+// @Summary      Delete organization
+// @Description  Permanently delete an organization and its data
+// @Tags         organization
+// @Produce      json
+// @Param        id   path  string  true  "Organization ID"
+// @Success      204
+// @Failure      500  {object}  httputil.ErrorResponseData
+// @Router       /dash/organization/{id} [delete]
+func (r *handler) deleteOrganizationHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+	id := cc.Param("organizationId")
+
+	if err := r.organizationService.DeleteOrganization(ctx, id); err != nil {
+		slog.Error("failed to delete organization", "err", err)
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+	}
+
+	return cc.NoContent(http.StatusNoContent)
+}
+
+// getOrganizationUsageHandler godoc
+// @Summary      Get organization usage
+// @Description  Get detailed storage and logging usage for an organization
+// @Tags         organization
+// @Produce      json
+// @Param        id   path      string  true  "Organization ID"
+// @Success      200  {object}  httputil.ResponseData{data=api.OrganizationUsage}
+// @Failure      500  {object}  httputil.ErrorResponseData
+// @Router       /dash/organization/{id}/usage [get]
+func (r *handler) getOrganizationUsageHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+	id := cc.Param("organizationId")
+
+	usage, err := r.organizationService.GetUsage(ctx, id)
+	if err != nil {
+		slog.Error("failed to get organization usage", "err", err)
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse(err.Error()))
+	}
+
+	return cc.JSON(http.StatusOK, httputil.Response(usage))
+}
+
 // getOrganizationStatsHandler godoc
 // @Summary      Get organization stats
 // @Description  Get statistics for an organization

@@ -22,5 +22,8 @@ func RegisterRoutes(group *echo.Group, authService *auth.Service, inviteService 
 	group.POST("/auth/logout", handler.logoutHandler)
 	group.GET("/auth/discord", handler.discordLoginHandler)
 	group.GET("/auth/discord/link", handler.discordLinkHandler)
+	group.POST("/auth/discord/unlink", handler.unlinkDiscordHandler)
 	group.GET("/auth/discord/callback", handler.discordCallbackHandler)
+	group.PATCH("/auth/me", handler.updateProfileHandler)
+	group.POST("/auth/password", handler.changePasswordHandler)
 }

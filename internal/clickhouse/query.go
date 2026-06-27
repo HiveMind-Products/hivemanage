@@ -195,3 +195,60 @@ func (r *Client) QueryTotalLogsByOrg(ctx context.Context, organizationID string)
 
 	return int(count), nil
 }
+
+// QueryLogCountsByDataset returns the log volume per dataset for an organization,
+// keyed by dataset id.
+func (r *Client) QueryLogCountsByDataset(ctx context.Context, organizationID string) (map[string]int, error) {
+	if r == nil || !r.Enabled || r.conn == nil {
+		return nil, ErrUnavailable
+	}
+	chCtx := clickhouse.Context(ctx, clickhouse.WithParameters(clickhouse.Parameters{
+		"TeamId": organizationID,
+	}))
+
+	rows, err := r.conn.Query(chCtx, "SELECT DatasetId, count() FROM logs WHERE TeamId = {TeamId:String} GROUP BY DatasetId")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var datasetID string
+		var count uint64
+		if err := rows.Scan(&datasetID, &count); err != nil {
+			return nil, err
+		}
+		counts[datasetID] = int(count)
+	}
+	return counts, rows.Err()
+}
+
+// QueryLogTimeseriesByOrg returns the daily log volume for an organization over
+// the trailing `days` days, oldest day first. Days with no logs are omitted.
+func (r *Client) QueryLogTimeseriesByOrg(ctx context.Context, organizationID string, days int) ([]api.LogDayCount, error) {
+	if r == nil || !r.Enabled || r.conn == nil {
+		return nil, ErrUnavailable
+	}
+	chCtx := clickhouse.Context(ctx, clickhouse.WithParameters(clickhouse.Parameters{
+		"TeamId": organizationID,
+		"Days":   fmt.Sprintf("%d", days),
+	}))
+
+	rows, err := r.conn.Query(chCtx, "SELECT toDate(Timestamp) AS day, count() FROM logs WHERE TeamId = {TeamId:String} AND Timestamp >= now() - INTERVAL {Days:UInt32} DAY GROUP BY day ORDER BY day")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var series []api.LogDayCount
+	for rows.Next() {
+		var day time.Time
+		var count uint64
+		if err := rows.Scan(&day, &count); err != nil {
+			return nil, err
+		}
+		series = append(series, api.LogDayCount{Date: day.Format("2006-01-02"), Count: int(count)})
+	}
+	return series, rows.Err()
+}

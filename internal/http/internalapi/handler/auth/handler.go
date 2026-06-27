@@ -251,6 +251,89 @@ func inviteTokenFromCookie(cc *appctx.Context) string {
 	return cookie.Value
 }
 
+// updateProfileHandler godoc
+// @Summary      Update profile
+// @Description  Update the current user's display name and/or avatar
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        data  body      api.UpdateProfileRequest  true  "Update Profile Request"
+// @Success      200   {object}  httputil.ResponseData{data=api.User}
+// @Failure      400   {object}  httputil.ErrorResponseData
+// @Router       /dash/auth/me [patch]
+func (r *handler) updateProfileHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+
+	var req api.UpdateProfileRequest
+	if err := validator.BindAndValidate(cc, &req); err != nil {
+		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse(err.Error()))
+	}
+
+	user := cc.User()
+	if err := r.authService.UpdateProfile(ctx, user.ID, req.Name, req.Avatar); err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to update profile"))
+	}
+
+	return cc.JSON(http.StatusOK, httputil.Response("Profile updated"))
+}
+
+// changePasswordHandler godoc
+// @Summary      Change password
+// @Description  Change the current user's password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        data  body      api.ChangePasswordRequest  true  "Change Password Request"
+// @Success      200   {object}  httputil.ResponseData{data=string}
+// @Failure      400   {object}  httputil.ErrorResponseData
+// @Failure      403   {object}  httputil.ErrorResponseData
+// @Router       /dash/auth/password [post]
+func (r *handler) changePasswordHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+
+	var req api.ChangePasswordRequest
+	if err := validator.BindAndValidate(cc, &req); err != nil {
+		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse(err.Error()))
+	}
+
+	user := cc.User()
+	err := r.authService.ChangePassword(ctx, user.ID, req.CurrentPassword, req.NewPassword)
+	if errors.Is(err, auth.ErrUserCredentials{}) {
+		return cc.JSON(http.StatusForbidden, httputil.ErrorResponse("Current password is incorrect"))
+	}
+	if err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to change password"))
+	}
+
+	return cc.JSON(http.StatusOK, httputil.Response("Password changed"))
+}
+
+// unlinkDiscordHandler godoc
+// @Summary      Unlink Discord
+// @Description  Remove the Discord link from the current account
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  httputil.ResponseData{data=string}
+// @Failure      400  {object}  httputil.ErrorResponseData
+// @Router       /dash/auth/discord/unlink [post]
+func (r *handler) unlinkDiscordHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+
+	user := cc.User()
+	err := r.authService.UnlinkDiscord(ctx, user.ID)
+	if errors.Is(err, auth.ErrUnlinkWouldLockOut) {
+		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse("Set a password before unlinking Discord"))
+	}
+	if err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to unlink Discord"))
+	}
+
+	return cc.JSON(http.StatusOK, httputil.Response("Discord unlinked"))
+}
+
 // logoutHandler godoc
 // @Summary      Logout
 // @Description  Logout current user and clear session cookie

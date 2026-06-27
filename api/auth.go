@@ -10,6 +10,16 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type UpdateProfileRequest struct {
+	Name   *string `json:"name" validate:"omitempty,max=128"`
+	Avatar *string `json:"avatar" validate:"omitempty,max=512"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword" validate:"required,min=8,max=128"`
+}
+
 type User struct {
 	ID                        int64                        `json:"id"`
 	Name                      *string                      `json:"name"`

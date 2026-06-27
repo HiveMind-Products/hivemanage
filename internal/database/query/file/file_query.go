@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/database"
 	"github.com/uptrace/bun"
 )
@@ -105,6 +106,40 @@ func FindTotalStorageSize(ctx context.Context, db *bun.DB, organizationID string
 	}
 
 	return size, nil
+}
+
+// FindStorageByCategory groups an organization's assets by their top-level MIME
+// category (the part before the "/"), returning a count and total size per group.
+func FindStorageByCategory(ctx context.Context, db *bun.DB, organizationID string) ([]api.StorageCategory, error) {
+	var rows []api.StorageCategory
+	err := db.NewSelect().
+		Model((*database.Asset)(nil)).
+		ColumnExpr("COALESCE(NULLIF(split_part(type, '/', 1), ''), 'other') AS category").
+		ColumnExpr("COUNT(*) AS count").
+		ColumnExpr("COALESCE(SUM(size), 0) AS size").
+		Where("organization_id = ?", organizationID).
+		GroupExpr("COALESCE(NULLIF(split_part(type, '/', 1), ''), 'other')").
+		OrderExpr("size DESC").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// FindLargestFiles returns the largest assets in an organization, newest size first.
+func FindLargestFiles(ctx context.Context, db *bun.DB, organizationID string, limit int) ([]*database.Asset, error) {
+	var assets []*database.Asset
+	err := db.NewSelect().
+		Model(&assets).
+		Where("organization_id = ?", organizationID).
+		Order("size DESC").
+		Limit(limit).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return assets, nil
 }
 
 func Delete(ctx context.Context, db *bun.DB, organizationID, id string) error {

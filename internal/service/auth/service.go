@@ -273,6 +273,72 @@ func (r *Service) LinkDiscord(ctx context.Context, code string, userID int64) er
 	return err
 }
 
+// UpdateProfile updates the display name and/or avatar of a user. Nil fields are
+// left unchanged.
+func (r *Service) UpdateProfile(ctx context.Context, userID int64, name, avatar *string) error {
+	if name == nil && avatar == nil {
+		return nil
+	}
+
+	q := r.db.NewUpdate().Model((*database.User)(nil)).Where("id = ?", userID)
+	if name != nil {
+		q = q.Set("name = ?", *name)
+	}
+	if avatar != nil {
+		q = q.Set("avatar = ?", *avatar)
+	}
+	_, err := q.Exec(ctx)
+	return err
+}
+
+// ChangePassword sets a new password for a user. If the user already has a
+// password, the current password must be provided and correct. Accounts created
+// via OAuth (no password yet) may set one without a current password.
+func (r *Service) ChangePassword(ctx context.Context, userID int64, current, newPassword string) error {
+	user := new(database.User)
+	if err := r.db.NewSelect().Model(user).Where("id = ?", userID).Scan(ctx); err != nil {
+		return err
+	}
+
+	if user.PasswordHash != "" {
+		if err := crypt.ComparePassword(user.PasswordHash, current); err != nil {
+			return &ErrUserCredentials{}
+		}
+	}
+
+	hash, err := crypt.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.NewUpdate().
+		Model((*database.User)(nil)).
+		Set("password_hash = ?", hash).
+		Where("id = ?", userID).
+		Exec(ctx)
+	return err
+}
+
+// UnlinkDiscord removes the Discord link from a user. It refuses if the user has
+// no password set, since that would leave them unable to log in.
+func (r *Service) UnlinkDiscord(ctx context.Context, userID int64) error {
+	user := new(database.User)
+	if err := r.db.NewSelect().Model(user).Where("id = ?", userID).Scan(ctx); err != nil {
+		return err
+	}
+	if user.PasswordHash == "" {
+		return ErrUnlinkWouldLockOut
+	}
+
+	_, err := r.db.NewUpdate().
+		Model((*database.User)(nil)).
+		Set("auth_provider = ?", "").
+		Set("auth_id = ?", "").
+		Where("id = ?", userID).
+		Exec(ctx)
+	return err
+}
+
 // we probably dont need this function anymore...maybe
 func (r *Service) userExists(ctx context.Context, email string) bool {
 	user := new(database.User)

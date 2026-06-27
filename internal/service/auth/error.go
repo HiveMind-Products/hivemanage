@@ -6,6 +6,10 @@ import "errors"
 // to link is already attached to a different local account.
 var ErrDiscordAlreadyLinked = errors.New("this Discord account is already linked to another user")
 
+// ErrUnlinkWouldLockOut is returned when unlinking Discord would leave an account
+// with no way to log in (no password set).
+var ErrUnlinkWouldLockOut = errors.New("set a password before unlinking Discord")
+
 type ErrSessionExpired struct{}
 
 func (ErrSessionExpired) Error() string {
