@@ -78,16 +78,18 @@ type Token struct {
 // nanoid to keep the ID more url friendly
 // might switch to uuid later
 type Asset struct {
-	bun.BaseModel  `bun:"table:asset"`
-	ID             string        `bun:"id,pk"`
-	Key            string        `bun:"key"`
-	OriginalName   string        `bun:"original_name"`
-	Size           int64         `bun:"size"`
-	Type           string        `bun:"type"`
-	CreatedAt      time.Time     `bun:"created_at,nullzero,notnull,default:current_timestamp"`
-	UpdatedAt      time.Time     `bun:"updated_at,nullzero,notnull,default:current_timestamp"`
-	OrganizationID string        `bun:"organization_id"`
-	Organization   *Organization `bun:"rel:belongs-to,join:organization_id=id"`
+	bun.BaseModel   `bun:"table:asset"`
+	ID              string         `bun:"id,pk"`
+	Key             string         `bun:"key"`
+	OriginalName    string         `bun:"original_name"`
+	Size            int64          `bun:"size"`
+	Type            string         `bun:"type"`
+	Metadata        map[string]any `bun:"metadata,type:jsonb,nullzero"`
+	RetentionExempt bool           `bun:"retention_exempt"`
+	CreatedAt       time.Time      `bun:"created_at,nullzero,notnull,default:current_timestamp"`
+	UpdatedAt       time.Time      `bun:"updated_at,nullzero,notnull,default:current_timestamp"`
+	OrganizationID  string         `bun:"organization_id"`
+	Organization    *Organization  `bun:"rel:belongs-to,join:organization_id=id"`
 }
 
 type Dataset struct {

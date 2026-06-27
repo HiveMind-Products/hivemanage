@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -25,6 +26,7 @@ type Storage struct {
 	client        *s3.Client
 	presignClient *s3.PresignClient
 	bucket        string
+	endpoint      string
 }
 
 func New(s3Provider string) (*Storage, error) {
@@ -32,8 +34,9 @@ func New(s3Provider string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load storage config: %w", err)
 	}
+	endpoint := os.Getenv("AWS_ENDPOINT")
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		if endpoint := os.Getenv("AWS_ENDPOINT"); endpoint != "" {
+		if endpoint != "" {
 			o.BaseEndpoint = aws.String(endpoint)
 		}
 		if s3Provider == MinIO {
@@ -44,7 +47,18 @@ func New(s3Provider string) (*Storage, error) {
 	if bucket == "" {
 		return nil, errors.New("environment variable AWS_BUCKET is not set")
 	}
-	return &Storage{client: client, presignClient: s3.NewPresignClient(client), bucket: bucket}, nil
+	return &Storage{client: client, presignClient: s3.NewPresignClient(client), bucket: bucket, endpoint: endpoint}, nil
+}
+
+// PublicURL returns the default (origin) storage URL for an object, derived from
+// the configured S3 endpoint and bucket (path-style). It returns "" when no
+// endpoint is configured (e.g. native AWS S3), in which case callers should fall
+// back to a configured CDN domain or a signed URL.
+func (r *Storage) PublicURL(key string) string {
+	if r.endpoint == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/%s", strings.TrimRight(r.endpoint, "/"), r.bucket, key)
 }
 
 func (r *Storage) UploadFile(ctx context.Context, file io.Reader, key, contentType string) error {
