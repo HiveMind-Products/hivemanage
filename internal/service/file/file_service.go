@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	"github.com/fivemanage/lite/api"
@@ -23,23 +24,24 @@ const (
 )
 
 type Service struct {
-	db      *bun.DB
-	storage *storages3.Storage
+	db           *bun.DB
+	storage      *storages3.Storage
+	bucketDomain string
 }
 
-func NewService(db *bun.DB, storageLayer *storages3.Storage) *Service {
-	return &Service{db: db, storage: storageLayer}
+func NewService(db *bun.DB, storageLayer *storages3.Storage, bucketDomain string) *Service {
+	return &Service{db: db, storage: storageLayer, bucketDomain: bucketDomain}
 }
 
 func (s *Service) CreateFile(ctx context.Context, organizationID string, file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
-	asset, err := s.createAsset(ctx, organizationID, file, fileHeader)
+	asset, err := s.createAsset(ctx, organizationID, file, fileHeader, CreateFileV3Params{})
 	if err != nil {
 		return "", err
 	}
 	return asset.Key, nil
 }
 func (s *Service) CreateStorageFile(ctx context.Context, organizationID string, file multipart.File, fileHeader *multipart.FileHeader) error {
-	_, err := s.createAsset(ctx, organizationID, file, fileHeader)
+	_, err := s.createAsset(ctx, organizationID, file, fileHeader, CreateFileV3Params{})
 	return err
 }
 func (s *Service) SignedURLByKey(ctx context.Context, key string) (string, error) {
@@ -69,7 +71,25 @@ func (s *Service) DeleteStorageFile(ctx context.Context, organizationID, fileID 
 	return filequery.Delete(ctx, s.db, organizationID, fileID)
 }
 
-func (s *Service) createAsset(ctx context.Context, organizationID string, file multipart.File, fileHeader *multipart.FileHeader) (*database.Asset, error) {
+// CreateFileV3Params carries the optional V3 upload fields.
+type CreateFileV3Params struct {
+	Filename        string
+	Path            string
+	Metadata        map[string]any
+	RetentionExempt bool
+}
+
+// CreateFileV3 stores a file with the optional V3 fields and returns the V3 view
+// of the asset (id, filename, type, size, url, originalUrl, metadata).
+func (s *Service) CreateFileV3(ctx context.Context, organizationID string, file multipart.File, fileHeader *multipart.FileHeader, params CreateFileV3Params) (*api.FileItemV3, error) {
+	asset, err := s.createAsset(ctx, organizationID, file, fileHeader, params)
+	if err != nil {
+		return nil, err
+	}
+	return s.assetToFileItem(asset), nil
+}
+
+func (s *Service) createAsset(ctx context.Context, organizationID string, file multipart.File, fileHeader *multipart.FileHeader, params CreateFileV3Params) (*database.Asset, error) {
 	if fileHeader.Size <= 0 || fileHeader.Size > MaxUploadSize {
 		return nil, UploadStorageError{ErrorMsg: fmt.Sprintf("file size must be between 1 and %d bytes", MaxUploadSize)}
 	}
@@ -81,11 +101,24 @@ func (s *Service) createAsset(ctx context.Context, organizationID string, file m
 	if err != nil {
 		return nil, UploadStorageError{ErrorMsg: errors.New("failed to get mime type").Error()}
 	}
-	key, err := generateFileKey(organizationID, ext)
+	key, err := generateFileKeyV3(organizationID, params.Path, params.Filename, ext)
 	if err != nil {
 		return nil, UploadStorageError{ErrorMsg: errors.New("failed to generate file key").Error()}
 	}
-	asset := &database.Asset{ID: primaryKey, Type: fileType, Size: fileHeader.Size, OrganizationID: organizationID, Key: key, OriginalName: fileHeader.Filename}
+	originalName := fileHeader.Filename
+	if params.Filename != "" {
+		originalName = params.Filename
+	}
+	asset := &database.Asset{
+		ID:              primaryKey,
+		Type:            fileType,
+		Size:            fileHeader.Size,
+		OrganizationID:  organizationID,
+		Key:             key,
+		OriginalName:    originalName,
+		Metadata:        params.Metadata,
+		RetentionExempt: params.RetentionExempt,
+	}
 	tx, err := filequery.Create(ctx, s.db, asset)
 	if err != nil {
 		return nil, err
@@ -104,6 +137,52 @@ func (s *Service) createAsset(ctx context.Context, organizationID string, file m
 		return nil, err
 	}
 	return asset, nil
+}
+
+// buildFileURLs returns (url, originalUrl) for a stored object. originalUrl is the
+// default storage URL; url uses the custom CDN domain (BUCKET_DOMAIN) when set.
+// Both fall back to a signed URL if no public base is configured.
+func (s *Service) buildFileURLs(ctx context.Context, key string) (string, string) {
+	url, originalURL := composeFileURLs(s.bucketDomain, s.storage.PublicURL(key), key)
+	if url == "" {
+		// Last resort so the response is still usable for private buckets with no
+		// configured public base.
+		if signed, err := s.storage.SignedURL(ctx, key, SignedURLExpiry); err == nil {
+			url, originalURL = signed, signed
+		}
+	}
+	return url, originalURL
+}
+
+// composeFileURLs derives (url, originalUrl) from the configured CDN domain and
+// the default storage URL. url prefers the CDN domain; originalUrl is the default
+// storage URL. Each falls back to the other when one is empty.
+func composeFileURLs(bucketDomain, defaultStorageURL, key string) (string, string) {
+	originalURL := defaultStorageURL
+	var url string
+	if bucketDomain != "" {
+		url = strings.TrimRight(bucketDomain, "/") + "/" + key
+	}
+	if url == "" {
+		url = originalURL
+	}
+	if originalURL == "" {
+		originalURL = url
+	}
+	return url, originalURL
+}
+
+func (s *Service) assetToFileItem(asset *database.Asset) *api.FileItemV3 {
+	url, originalURL := s.buildFileURLs(context.Background(), asset.Key)
+	return &api.FileItemV3{
+		ID:          asset.ID,
+		Filename:    asset.OriginalName,
+		Type:        asset.Type,
+		Size:        asset.Size,
+		URL:         url,
+		OriginalURL: originalURL,
+		Metadata:    asset.Metadata,
+	}
 }
 
 func (s *Service) ListStorageFiles(ctx context.Context, organizationID string, search string, fileType string, page int, pageSize int) (*api.AssetResponse, error) {

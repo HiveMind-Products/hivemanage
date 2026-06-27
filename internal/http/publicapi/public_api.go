@@ -17,8 +17,16 @@ func Add(group *echo.Group,
 	logService *log.Service,
 ) {
 	group.GET("/swagger/*", echoSwagger.WrapHandler)
+
+	// Registered BEFORE TokenAuth: the presigned upload route authenticates via
+	// its signed token in the path, not via an API key.
+	registerV3PresignedUpload(group, fileService)
+
 	group.Use(middleware.TokenAuth(tokenService))
 
 	registerMediaApi(group, fileService)
 	registerLogsApi(group, logService)
+	registerV3FileApi(group, fileService)
+	registerV3PresignedGenerate(group, fileService)
+	registerV3LogsApi(group, logService)
 }

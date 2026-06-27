@@ -1,0 +1,2 @@
+ALTER TABLE asset DROP COLUMN IF EXISTS retention_exempt;
+ALTER TABLE asset DROP COLUMN IF EXISTS metadata;

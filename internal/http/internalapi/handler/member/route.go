@@ -4,8 +4,8 @@ import (
 	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/auth"
-	"github.com/fivemanage/lite/internal/service/member"
 	inviteservice "github.com/fivemanage/lite/internal/service/invite"
+	"github.com/fivemanage/lite/internal/service/member"
 	"github.com/labstack/echo/v4"
 )
 

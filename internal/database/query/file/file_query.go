@@ -47,6 +47,62 @@ func FindFileByID(ctx context.Context, db *bun.DB, organizationID, id string) (*
 	return &file, nil
 }
 
+// FindFileByKey looks an asset up by its storage key, scoped to the organization.
+func FindFileByKey(ctx context.Context, db *bun.DB, organizationID, key string) (*database.Asset, error) {
+	var file database.Asset
+	err := db.NewSelect().
+		Model(&file).
+		Where("organization_id = ?", organizationID).
+		Where("key = ?", key).
+		Limit(1).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &file, nil
+}
+
+// FindFilesV3 lists assets for the V3 API with optional type and folder filters.
+// offset/limit are applied directly (caller computes offset from page).
+func FindFilesV3(ctx context.Context, db *bun.DB, organizationID, fileType, folder string, offset, limit int) ([]*database.Asset, error) {
+	var files []*database.Asset
+	sb := v3FileFilter(db.NewSelect().Model(&files), organizationID, fileType, folder).
+		Order("created_at DESC")
+	if limit > 0 {
+		sb = sb.Limit(limit).Offset(offset)
+	}
+	if err := sb.Scan(ctx); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return files, nil
+}
+
+// CountFilesV3 counts assets matching the V3 type/folder filters.
+func CountFilesV3(ctx context.Context, db *bun.DB, organizationID, fileType, folder string) (int, error) {
+	count, err := v3FileFilter(db.NewSelect().Model((*database.Asset)(nil)), organizationID, fileType, folder).Count(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func v3FileFilter(sb *bun.SelectQuery, organizationID, fileType, folder string) *bun.SelectQuery {
+	sb = sb.Where("organization_id = ?", organizationID)
+	if fileType != "" && fileType != "all" {
+		sb = sb.Where("type = ?", fileType)
+	}
+	if folder != "" {
+		sb = sb.Where("key LIKE ?", organizationID+"/"+folder+"/%")
+	}
+	return sb
+}
+
 func FindStorageFiles(ctx context.Context, db *bun.DB, organizationID, search, fileType string, page, pageSize int) ([]*database.Asset, error) {
 	var files []*database.Asset
 

@@ -11,9 +11,15 @@ import (
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
 )
 
+// registerMediaApi registers the legacy V2 media upload routes.
+//
+// Deprecated: these routes are superseded by POST /api/v3/file (field "file").
+// They are retained for backward compatibility and reuse the V3 upload logic
+// internally, but keep their original flat { "url": ... } response shape.
 func registerMediaApi(group *echo.Group, fileService *file.Service) {
 	handle := func(fileType string) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			c.Response().Header().Set("Deprecation", "true")
 			ctx := c.Request().Context()
 			orgId, err := auth.CurrentOrgId(c)
 			if err != nil {
@@ -23,15 +29,12 @@ func registerMediaApi(group *echo.Group, fileService *file.Service) {
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 			}
-			key, err := fileService.CreateFile(ctx, orgId, f, header)
+			defer f.Close()
+			item, err := fileService.CreateFileV3(ctx, orgId, f, header, file.CreateFileV3Params{})
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 			}
-			url, err := fileService.SignedURLByKey(ctx, key)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-			}
-			return c.JSON(http.StatusOK, echo.Map{"url": url})
+			return c.JSON(http.StatusOK, echo.Map{"url": item.URL})
 		}
 	}
 	group.POST("/image", handle("image"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("image", middleware.WhitelistedImageMIME))
