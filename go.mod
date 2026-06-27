@@ -1,6 +1,6 @@
 module github.com/fivemanage/lite
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.36.0
@@ -25,7 +25,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.36.0
 	go.opentelemetry.io/otel/sdk v1.36.0
 	golang.org/x/crypto v0.47.0
-	golang.org/x/oauth2 v0.28.0
+	golang.org/x/oauth2 v0.36.0
 )
 
 require (
