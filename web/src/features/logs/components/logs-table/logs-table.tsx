@@ -44,7 +44,6 @@ import { useQueryLogs } from "../../api/logs-api";
 import { LogsTableProvider } from "../../providers/logs-table-provider";
 import { VALID_INTERVALS } from "@/lib/constants/interval";
 import { QueryBuilder } from "../search/query-builder";
-//import { StarredSearchDrawer } from "../search/starred-search/starred-search-drawer";
 import { DatasetSelect } from "./dataset-select";
 import { useSidebarControls } from "../../hooks/use-sidebar-controls";
 import { useCustomColumns } from "../../hooks/use-custom-columns";
@@ -587,7 +586,6 @@ export function LogsTable({
                 <div className="flex flex-row items-center gap-2">
                   <DatasetSelect teamId={teamId} />
                   <QueryBuilder fields={fields} />
-                  {/*<StarredSearchDrawer /> */}
                 </div>
               )}
             </div>

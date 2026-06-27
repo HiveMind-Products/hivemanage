@@ -22,7 +22,6 @@ import (
 )
 
 type authConfig struct {
-	github  *oauth2.Config
 	discord *oauth2.Config
 }
 
@@ -32,11 +31,8 @@ type Service struct {
 }
 
 func NewService(db *bun.DB) *Service {
-	githubConfig := auth.NewGithubConfig()
-
 	return &Service{
 		config: authConfig{
-			github:  githubConfig,
 			discord: auth.NewDiscordConfig(),
 		},
 		db: db,
@@ -136,24 +132,6 @@ func (r *Service) LoginUser(ctx context.Context, username, password string) (str
 	// we can instead create a session as another call and then add that sessionId
 	// as a cookie
 	return sessionID, nil
-}
-
-// OAuthLogin uses OAuth2 to authenticate the user
-// This will probably work as register and login, right???
-func (r *Service) OAuthLogin() string {
-	verifier := oauth2.GenerateVerifier()
-	url := r.config.github.AuthCodeURL("state", oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verifier))
-
-	return url
-}
-
-func (r *Service) Callback(code string) *oauth2.Token {
-	token, err := r.config.github.Exchange(context.TODO(), code)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return token
 }
 
 type discordUser struct {

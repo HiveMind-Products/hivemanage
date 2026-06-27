@@ -1,9 +1,19 @@
-import { useParams } from "react-router";
-import { useFile, useFileURL } from "../api/use-file";
+import { useNavigate, useParams } from "react-router";
+import { useDeleteFile, useFile, useFileURL } from "../api/use-file";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   FileIcon,
   FileImage,
@@ -36,8 +46,21 @@ export default function FileRoute() {
   }>();
 
   const canWrite = usePermission("storage", "write");
+  const navigate = useNavigate();
   const { data, isPending } = useFile(organizationId, fileId);
   const { data: signedURL } = useFileURL(organizationId, fileId);
+  const deleteFile = useDeleteFile(organizationId, fileId);
+
+  const handleDelete = () => {
+    deleteFile.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("File deleted");
+        navigate(`/app/${organizationId}/storage`);
+      },
+      onError: (error) =>
+        toast.error(error instanceof Error ? error.message : "Failed to delete file"),
+    });
+  };
 
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
@@ -201,10 +224,31 @@ export default function FileRoute() {
           )}
 
           {canWrite && (
-            <Button variant="destructive" className="w-full">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="destructive" className="w-full">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete file?</DialogTitle>
+                  <DialogDescription>
+                    This permanently removes{" "}
+                    <span className="font-medium">{data?.originalName}</span>. This cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button variant="destructive" onClick={handleDelete} disabled={deleteFile.isPending}>
+                    Delete
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </div>
