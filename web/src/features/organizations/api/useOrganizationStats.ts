@@ -1,4 +1,4 @@
-import { ApiError, fetchApi } from "@/utils/http-util";
+import { fetchApi } from "@/utils/http-util";
 import { useQuery } from "@tanstack/react-query";
 
 export interface OrganizationStats {
@@ -13,16 +13,9 @@ export function useOrganizationStats(organizationId: string | undefined) {
   return useQuery({
     queryKey: ["organization-stats", organizationId],
     enabled: !!organizationId,
-    queryFn: async () => {
-      try {
-        return await fetchApi<OrganizationStats>(
-          `/api/dash/organization/${organizationId}/stats`,
-        );
-      } catch (err) {
-        if (err instanceof ApiError) {
-          throw new Error(err.message);
-        }
-      }
-    },
+    queryFn: () =>
+      fetchApi<OrganizationStats>(
+        `/api/dash/organization/${organizationId}/stats`,
+      ),
   });
 }

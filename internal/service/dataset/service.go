@@ -3,7 +3,6 @@ package dataset
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/fivemanage/lite/api"
@@ -57,7 +56,6 @@ func (r *Service) Create(ctx context.Context, orgID string, data api.CreateDatas
 }
 
 func (r *Service) GetLog(ctx context.Context, organizationID, datasetID, logID string) (*api.DatasetLog, error) {
-	fmt.Println(organizationID, datasetID, logID)
 	log, err := r.ch.QueryLog(ctx, organizationID, datasetID, logID)
 	if err != nil {
 		return nil, err
@@ -143,7 +141,6 @@ func (r *Service) QueryLogs(
 
 	if len(filter) != 0 {
 		if err := json.Unmarshal([]byte(filter), &filterObj); err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 	}

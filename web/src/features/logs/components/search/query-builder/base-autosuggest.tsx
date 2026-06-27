@@ -189,7 +189,6 @@ export function BaseAutosuggest(props: BaseAutosuggestProps) {
                 rawValue !== undefined &&
                 rawValue.match(/["']/g) === null
               ) {
-                console.log("raw string", rawValue);
                 values.push({
                   ...s,
                   operator: o,

@@ -1,7 +1,7 @@
 import { Field, Log, QueryLogResponse } from "@/typings/logs";
 import { ListLogsSchema } from "@/typings/logs";
 import { QueryKeys } from "@/typings/query";
-import { ApiError, fetchApi } from "@/utils/http-util";
+import { fetchApi } from "@/utils/http-util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 export function useListFields(
@@ -10,20 +10,11 @@ export function useListFields(
 ) {
   return useQuery({
     queryKey: [QueryKeys.DatasetFields, organizationId, datasetId],
-    queryFn: async ({ signal }) => {
-      try {
-        return await fetchApi<Field[]>(
-          `/api/dash/${organizationId}/dataset/${datasetId}/fields`,
-          {
-            signal,
-          },
-        );
-      } catch (err) {
-        if (err instanceof ApiError) {
-          throw new Error(err.message);
-        }
-      }
-    },
+    queryFn: ({ signal }) =>
+      fetchApi<Field[]>(
+        `/api/dash/${organizationId}/dataset/${datasetId}/fields`,
+        { signal },
+      ),
   });
 }
 
@@ -33,21 +24,14 @@ export function useQueryLogs(
 ) {
   return useMutation({
     mutationKey: [QueryKeys.Logs, organizationId, datasetId],
-    mutationFn: async (params: ListLogsSchema) => {
-      try {
-        return await fetchApi<QueryLogResponse>(
-          `/api/dash/${organizationId}/dataset/${datasetId}/logs`,
-          {
-            method: "POST",
-            body: JSON.stringify(params),
-          },
-        );
-      } catch (err) {
-        if (err instanceof ApiError) {
-          throw new Error(err.message);
-        }
-      }
-    },
+    mutationFn: (params: ListLogsSchema) =>
+      fetchApi<QueryLogResponse>(
+        `/api/dash/${organizationId}/dataset/${datasetId}/logs`,
+        {
+          method: "POST",
+          body: JSON.stringify(params),
+        },
+      ),
   });
 }
 
@@ -59,19 +43,10 @@ export function useLog(
   return useQuery({
     queryKey: [QueryKeys.Logs, organizationId, datasetId, logId],
     enabled: !!logId,
-    queryFn: async ({ signal }) => {
-      try {
-        return await fetchApi<Log>(
-          `/api/dash/${organizationId}/dataset/${datasetId}/logs/${logId}`,
-          {
-            signal,
-          },
-        );
-      } catch (err) {
-        if (err instanceof ApiError) {
-          throw new Error(err.message);
-        }
-      }
-    },
+    queryFn: ({ signal }) =>
+      fetchApi<Log>(
+        `/api/dash/${organizationId}/dataset/${datasetId}/logs/${logId}`,
+        { signal },
+      ),
   });
 }

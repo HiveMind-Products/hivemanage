@@ -337,8 +337,6 @@ function InternalFilterBuilder(props: InternalFilterBuilderProps) {
 
     const isEditing = !!props.editingFilter;
 
-    console.log("renderFilter", { isEditing, field, operator, value });
-
     if (isEditing && filter === props.editingFilter) {
       return (
         <div className="absolute w-full z-999 inset-0 bg-background">

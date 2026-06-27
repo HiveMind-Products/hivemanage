@@ -1,8 +1,19 @@
+# -----------------------------------------------------------------------------
+# Local / development infrastructure for HiveManage (Fivemanage Lite).
+#
+# This file provisions the backing services (Postgres, ClickHouse, MinIO,
+# Jaeger) only -- it does NOT run the application itself. For a real deployment
+# run the published image (ghcr.io/hivemind-products/hivemanage) from your
+# orchestrator and point it at these (or managed) services.
+#
+# Credentials below are placeholders for local use only. Override them via your
+# own environment before using anywhere that is not a throwaway dev machine.
+# -----------------------------------------------------------------------------
 name: "Fivemanage Lite"
 
 services:
   lite-database:
-    image: postgres:latest
+    image: postgres:16
     container_name: lite-database
     environment:
       POSTGRES_USER: postgres
@@ -12,10 +23,16 @@ services:
       - "5432:5432"
     volumes:
       - ./.docker/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fivemanage-lite-dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - fivemanage
   lite-jaeger:
-    image: jaegertracing/jaeger:2.4.0 
+    image: jaegertracing/jaeger:2.4.0
     container_name: jaeger
     ports:
       - "16686:16686"
@@ -24,7 +41,7 @@ services:
       - "5778:5778"
       - "9411:9411"
   lite-clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:24.8
     restart: always
     container_name: lite-clickhouse
     environment:
@@ -34,10 +51,16 @@ services:
       - '19000:9000'
     volumes:
       - clickhouse-data:/var/lib/clickhouse/
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - fivemanage
   lite-minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: lite-minio
     ports:
       - "9000:9000" 

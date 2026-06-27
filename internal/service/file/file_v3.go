@@ -51,7 +51,7 @@ func (s *Service) CreateFileBase64V3(ctx context.Context, organizationID string,
 	if err != nil {
 		return nil, err
 	}
-	return s.assetToFileItem(asset), nil
+	return s.assetToFileItem(ctx, asset), nil
 }
 
 // NormalizeListParams clamps the V3 list pagination inputs and returns the
@@ -86,7 +86,7 @@ func (s *Service) ListFilesV3(ctx context.Context, organizationID, fileType, fol
 
 	items := make([]*api.FileItemV3, 0, len(files))
 	for _, f := range files {
-		items = append(items, s.assetToFileItem(f))
+		items = append(items, s.assetToFileItem(ctx, f))
 	}
 	return items, total, nil
 }
@@ -97,7 +97,7 @@ func (s *Service) GetFileV3(ctx context.Context, organizationID, idOrKey string)
 	if err != nil {
 		return nil, err
 	}
-	return s.assetToFileItem(asset), nil
+	return s.assetToFileItem(ctx, asset), nil
 }
 
 // DeleteFileV3 deletes a file (storage object + DB record) by id or storage key.

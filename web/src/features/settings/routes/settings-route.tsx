@@ -213,8 +213,8 @@ function OrganizationSettings() {
     mutationFn: (body: { name: string }) =>
       fetchApi("/api/dash/organization/" + organizationId, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Organization, organizationId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Organizations] });
       toast.success("Organization renamed");
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to rename organization"),

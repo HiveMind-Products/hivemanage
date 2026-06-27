@@ -74,7 +74,7 @@ export function OrganizationTeamRoute() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [QueryKeys.Members, organizationId] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.Session] });
-    queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.Organizations] });
   };
 
   const createMember = useMutation({
@@ -91,6 +91,7 @@ export function OrganizationTeamRoute() {
       setPermissions(presetPermissions(defaultRole));
       toast.success("Member created", { description: data ? "Password: " + data.password : undefined });
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create member"),
   });
 
   const updateMember = useMutation({
@@ -106,13 +107,19 @@ export function OrganizationTeamRoute() {
         delete next[vars.memberId];
         return next;
       });
+      toast.success("Member updated");
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update member"),
   });
 
   const removeMember = useMutation({
     mutationFn: (memberId: number) =>
       fetchApi("/api/dash/organization/" + organizationId + "/member/" + memberId, { method: "DELETE" }),
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Member removed");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to remove member"),
   });
 
   const createInvite = useMutation({
@@ -135,6 +142,7 @@ export function OrganizationTeamRoute() {
         toast.success("Invite created");
       }
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create invite"),
   });
 
   const deleteInvite = useMutation({
@@ -144,6 +152,7 @@ export function OrganizationTeamRoute() {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Invites, organizationId] });
       toast.success("Invite deleted");
     },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete invite"),
   });
 
   const members = membersQuery.data ?? [];

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/fivemanage/lite/api"
@@ -56,10 +57,17 @@ func (h *logsHandler) submitLogs(c echo.Context) error {
 	}
 
 	if err := h.logService.SubmitLogs(ctx, orgID, dataset, logs); err != nil {
-		if errors.Is(err, clickhouse.ErrUnavailable) {
+		switch {
+		case errors.Is(err, clickhouse.ErrUnavailable):
 			return c.JSON(http.StatusServiceUnavailable, httputil.ErrorResponse("logging is unavailable"))
+		case errors.Is(err, clickhouse.ErrWriteFailed):
+			slog.Error("failed to store logs", "err", err)
+			return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("failed to store logs"))
+		default:
+			// Remaining errors are client-side validation problems and are safe
+			// to surface as 400.
+			return c.JSON(http.StatusBadRequest, httputil.ErrorResponse(err.Error()))
 		}
-		return c.JSON(http.StatusBadRequest, httputil.ErrorResponse(err.Error()))
 	}
 	return c.JSON(200, httputil.Response("ok"))
 }

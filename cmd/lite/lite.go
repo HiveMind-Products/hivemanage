@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	nethttp "net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +40,13 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 
+		setupLogging()
+
+		if err := validateRequiredConfig(); err != nil {
+			slog.Error("invalid configuration", slog.Any("error", err))
+			os.Exit(1)
+		}
+
 		port := viper.GetInt("port")
 		driver := viper.GetString("driver")
 		dsn := viper.GetString("dsn")
@@ -51,6 +60,11 @@ var rootCmd = &cobra.Command{
 		}
 
 		defer func() {
+			// SetupTracer may return a nil shutdown func when tracing is disabled or
+			// failed to initialize; guard against a nil call panicking on exit.
+			if otelShutdown == nil {
+				return
+			}
 			slog.Info("attempting to shutdown OpenTelemetry...")
 			otelCtx, otelCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer otelCancel()
@@ -62,9 +76,7 @@ var rootCmd = &cobra.Command{
 			}
 		}()
 
-		// this is kinda confusion, 'db' and 'store'
-		// maybe we shold call it like...connection and instance?
-		// store makes no fucking sense atleast
+		// 'db' is the driver factory; 'store' is the live connection/instance.
 		db := database.New(driver)
 		store := db.Connect(dsn)
 
@@ -118,6 +130,7 @@ var rootCmd = &cobra.Command{
 		systemService := system.NewService(Version, viper.GetString("bucket-domain"))
 
 		server := http.NewServer(
+			store,
 			authService,
 			tokenService,
 			fileService,
@@ -190,7 +203,6 @@ func init() {
 	rootCmd.Flags().Bool("otel-enabled", false, "Enable OpenTelemetry exporter")
 	rootCmd.Flags().String("otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint")
 
-	// fuck me
 	if err := viper.BindPFlag("port", rootCmd.Flags().Lookup("port")); err != nil {
 		bindError(err)
 	}
@@ -245,6 +257,51 @@ func init() {
 		migrate.UnlockCmd,
 		migrate.LockCmd,
 	)
+}
+
+// setupLogging installs a structured slog handler as the process default. The
+// format (json/text) and level are controlled by LOG_FORMAT and LOG_LEVEL.
+func setupLogging() {
+	var level slog.Level
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	opts := &slog.HandlerOptions{Level: level}
+	var handler slog.Handler
+	// Default to JSON in production; text is friendlier for local dev.
+	if strings.EqualFold(os.Getenv("LOG_FORMAT"), "text") || os.Getenv("ENV") == "dev" {
+		handler = slog.NewTextHandler(os.Stderr, opts)
+	} else {
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	}
+	slog.SetDefault(slog.New(handler))
+}
+
+// validateRequiredConfig fails fast on missing or weak security-critical
+// configuration. In particular API_TOKEN_HMAC_SECRET keys both API-token
+// hashing and presigned-upload signing; an empty/weak value would let anyone
+// forge upload tokens, so it must be present and sufficiently long.
+func validateRequiredConfig() error {
+	const minHMACSecretLen = 32
+	secret := os.Getenv("API_TOKEN_HMAC_SECRET")
+	if strings.TrimSpace(secret) == "" {
+		return errors.New("API_TOKEN_HMAC_SECRET is required but not set")
+	}
+	if len(secret) < minHMACSecretLen {
+		return fmt.Errorf("API_TOKEN_HMAC_SECRET must be at least %d bytes (got %d)", minHMACSecretLen, len(secret))
+	}
+	if strings.Contains(secret, "<") || secret == "changeme" || secret == "secret" {
+		return errors.New("API_TOKEN_HMAC_SECRET still looks like a placeholder; set a real random value")
+	}
+	return nil
 }
 
 func syncOTelConfigFromViper() {

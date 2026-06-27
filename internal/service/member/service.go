@@ -14,7 +14,13 @@ import (
 	"github.com/uptrace/bun"
 )
 
-var ErrLastAdmin = errors.New("organization must keep at least one admin")
+var (
+	ErrLastAdmin = errors.New("organization must keep at least one admin")
+	// ErrEscalation is returned when a non-admin actor attempts to grant the admin
+	// role (which carries all permissions) — preventing privilege escalation via
+	// the team:write permission.
+	ErrEscalation = errors.New("only an organization admin can assign the admin role")
+)
 
 type Service struct {
 	db *bun.DB
@@ -38,10 +44,14 @@ func (s *Service) ListMembers(ctx context.Context, organizationID string) ([]*ap
 	return members, nil
 }
 
-func (s *Service) AddMember(ctx context.Context, organizationID string, req *api.CreateMemberRequest) (*api.CreateMemberResponse, error) {
+func (s *Service) AddMember(ctx context.Context, organizationID string, req *api.CreateMemberRequest, actorIsAdmin bool) (*api.CreateMemberResponse, error) {
 	role, memberPermissions, err := permissions.Normalize(req.Role, req.Permissions)
 	if err != nil {
 		return nil, err
+	}
+
+	if role == api.MemberRoleAdmin && !actorIsAdmin {
+		return nil, ErrEscalation
 	}
 
 	existing := new(database.User)
@@ -97,7 +107,7 @@ func (s *Service) AddMember(ctx context.Context, organizationID string, req *api
 	return &api.CreateMemberResponse{Username: req.Username, Password: password}, nil
 }
 
-func (s *Service) UpdateMember(ctx context.Context, organizationID string, memberID int64, req *api.UpdateMemberRequest) (*api.OrganizationMember, error) {
+func (s *Service) UpdateMember(ctx context.Context, organizationID string, memberID int64, req *api.UpdateMemberRequest, actorIsAdmin bool) (*api.OrganizationMember, error) {
 	current, err := organizationquery.FindMember(ctx, s.db, organizationID, memberID)
 	if err != nil {
 		return nil, err
@@ -109,6 +119,12 @@ func (s *Service) UpdateMember(ctx context.Context, organizationID string, membe
 	}
 
 	currentRole := permissions.RoleOrViewer(current.Role)
+	// A non-admin actor may not promote anyone (including themselves) to admin,
+	// nor strip the admin role off an existing admin to take over.
+	if !actorIsAdmin && (role == api.MemberRoleAdmin || currentRole == api.MemberRoleAdmin) {
+		return nil, ErrEscalation
+	}
+
 	if currentRole == api.MemberRoleAdmin && role != api.MemberRoleAdmin {
 		if err := s.ensureNotLastAdmin(ctx, organizationID); err != nil {
 			return nil, err

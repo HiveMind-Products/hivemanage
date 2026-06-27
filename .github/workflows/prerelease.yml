@@ -30,10 +30,30 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           file: ./build/package/Dockerfile
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.dockerImage }}:latest
             ${{ env.dockerImage }}:develop
           build-args: |
             LITE_VERSION=hivemanage-dev
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.dockerImage }}:latest
+          format: table
+          # Informational only: report vulnerabilities without failing the build.
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        # Informational: produce an SBOM artifact, do not fail the build on errors.
+        continue-on-error: true
+        with:
+          image: ${{ env.dockerImage }}:latest
+          format: spdx-json
+          artifact-name: hivemanage-sbom.spdx.json

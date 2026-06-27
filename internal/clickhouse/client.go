@@ -18,7 +18,12 @@ type Config struct {
 	Database string
 }
 
-var ErrUnavailable = errors.New("clickhouse unavailable")
+var (
+	ErrUnavailable = errors.New("clickhouse unavailable")
+	// ErrWriteFailed wraps infrastructure failures from the batch write path so
+	// callers can distinguish them from client-side validation errors.
+	ErrWriteFailed = errors.New("clickhouse write failed")
+)
 
 type Client struct {
 	conn    driver.Conn
@@ -82,7 +87,7 @@ func getClickhouseOptions(config *Config) *clickhouse.Options {
 			},
 		},
 		Debugf: func(format string, v ...any) {
-			fmt.Printf(format, v)
+			slog.Debug(fmt.Sprintf(format, v...))
 		},
 	}
 }
@@ -97,7 +102,11 @@ func connect(options *clickhouse.Options) (driver.Conn, error) {
 	if err := conn.Ping(ctx); err != nil {
 		var exception *clickhouse.Exception
 		if errors.As(err, &exception) {
-			fmt.Printf("Exception [%d] %s \n%s\n", exception.Code, exception.Message, exception.StackTrace)
+			slog.Error("clickhouse exception on ping",
+				"code", exception.Code,
+				"message", exception.Message,
+				"stacktrace", exception.StackTrace,
+			)
 		}
 		return nil, err
 	}
@@ -116,8 +125,8 @@ func (c *Client) BatchWriteLogRows(ctx context.Context, logs []*Log) error {
 
 	batch, err := c.conn.PrepareBatch(ctx, "INSERT INTO logs (Timestamp, DatasetId, TraceId, TeamId, Body, Attributes, RetentionDays)")
 	if err != nil {
-		fmt.Println("failed to prepare batch", err.Error())
-		return fmt.Errorf("failed to prepare batch: %w", err)
+		slog.Error("failed to prepare clickhouse batch", "err", err)
+		return fmt.Errorf("%w: failed to prepare batch: %v", ErrWriteFailed, err)
 	}
 
 	for _, log := range logs {
@@ -131,10 +140,14 @@ func (c *Client) BatchWriteLogRows(ctx context.Context, logs []*Log) error {
 			log.RetentionDays,
 		)
 		if err != nil {
-			fmt.Println("failed to append log to batch", err.Error())
-			return fmt.Errorf("failed to append log to batch: %w", err)
+			slog.Error("failed to append log to clickhouse batch", "err", err)
+			return fmt.Errorf("%w: failed to append log to batch: %v", ErrWriteFailed, err)
 		}
 	}
 
-	return batch.Send()
+	if err := batch.Send(); err != nil {
+		slog.Error("failed to send clickhouse batch", "err", err)
+		return fmt.Errorf("%w: %v", ErrWriteFailed, err)
+	}
+	return nil
 }

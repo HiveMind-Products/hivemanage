@@ -46,7 +46,7 @@ func (h *v3FileHandler) upload(c echo.Context) error {
 
 	item, err := h.fileService.CreateFileV3(ctx, orgID, f, header, params)
 	if err != nil {
-		return v3Error(c, uploadStatus(err), err.Error())
+		return v3ServiceError(c, uploadStatus(err), err, "failed to upload file")
 	}
 	return c.JSON(http.StatusOK, httputil.Response(uploadResult(item)))
 }
@@ -63,7 +63,7 @@ func (h *v3FileHandler) uploadBase64(c echo.Context) error {
 	}
 	item, err := h.fileService.CreateFileBase64V3(ctx, orgID, req)
 	if err != nil {
-		return v3Error(c, uploadStatus(err), err.Error())
+		return v3ServiceError(c, uploadStatus(err), err, "failed to upload file")
 	}
 	return c.JSON(http.StatusOK, httputil.Response(uploadResult(item)))
 }
@@ -81,7 +81,7 @@ func (h *v3FileHandler) list(c echo.Context) error {
 
 	items, total, err := h.fileService.ListFilesV3(ctx, orgID, fileType, folder, page, limit)
 	if err != nil {
-		return v3Error(c, http.StatusInternalServerError, err.Error())
+		return v3ServiceError(c, http.StatusInternalServerError, err, "failed to list files")
 	}
 	normPage, normLimit, _ := file.NormalizeListParams(page, limit)
 	return c.JSON(http.StatusOK, v3ListFilesResponse{
@@ -103,7 +103,7 @@ func (h *v3FileHandler) get(c echo.Context) error {
 	}
 	item, err := h.fileService.GetFileV3(ctx, orgID, idOrKey)
 	if err != nil {
-		return v3Error(c, notFoundOrServer(err), err.Error())
+		return v3ServiceError(c, notFoundOrServer(err), err, "failed to get file")
 	}
 	return c.JSON(http.StatusOK, httputil.Response(item))
 }
@@ -119,7 +119,7 @@ func (h *v3FileHandler) delete(c echo.Context) error {
 		return v3Error(c, http.StatusBadRequest, "file id or key is required")
 	}
 	if err := h.fileService.DeleteFileV3(ctx, orgID, idOrKey); err != nil {
-		return v3Error(c, notFoundOrServer(err), err.Error())
+		return v3ServiceError(c, notFoundOrServer(err), err, "failed to delete file")
 	}
 	return c.JSON(http.StatusOK, echo.Map{"status": "ok"})
 }

@@ -10,22 +10,12 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// todo: rename to Insert
-func Create(ctx context.Context, db *bun.DB, file *database.Asset) (bun.Tx, error) {
-	var err error
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return tx, err
-	}
-
-	_, err = tx.NewInsert().Model(file).Exec(ctx)
-	if err != nil {
-		_ = tx.Rollback()
-		return tx, err
-	}
-
-	return tx, nil
+// Insert persists a single asset row. It deliberately does not open a
+// transaction: callers upload to object storage first and only persist the
+// metadata row afterwards, so there is nothing to roll back here.
+func Insert(ctx context.Context, db *bun.DB, file *database.Asset) error {
+	_, err := db.NewInsert().Model(file).Exec(ctx)
+	return err
 }
 
 func FindFileByID(ctx context.Context, db *bun.DB, organizationID, id string) (*database.Asset, error) {
