@@ -2,16 +2,19 @@ package auth
 
 import (
 	"github.com/fivemanage/lite/internal/service/auth"
+	"github.com/fivemanage/lite/internal/service/invite"
 	"github.com/labstack/echo/v4"
 )
 
 type handler struct {
-	authService *auth.Service
+	authService   *auth.Service
+	inviteService *invite.Service
 }
 
-func RegisterRoutes(group *echo.Group, authService *auth.Service) {
+func RegisterRoutes(group *echo.Group, authService *auth.Service, inviteService *invite.Service) {
 	handler := handler{
-		authService: authService,
+		authService:   authService,
+		inviteService: inviteService,
 	}
 
 	group.GET("/auth/session", handler.getSessionHandler)

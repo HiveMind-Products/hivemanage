@@ -32,7 +32,7 @@ func Add(
 	group.Use(middleware.Session(authService))
 	group.Use(middleware.CSRF())
 
-	authhander.RegisterRoutes(group, authService)
+	authhander.RegisterRoutes(group, authService, inviteService)
 	tokenhandler.RegisterRoutes(group, tokenService, authService)
 	organizationhandler.RegisterRoutes(group, organizationService, authService)
 	memberhandler.RegisterRoutes(group, memberService, authService, inviteService)

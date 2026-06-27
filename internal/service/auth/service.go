@@ -171,28 +171,29 @@ func (r *Service) DiscordAuthURL(state string) string {
 
 // LoginWithDiscord exchanges an OAuth code for the Discord user, upserts a local
 // user linked by (auth_provider=discord, auth_id=<discord id>), and returns a new
-// session ID. It never merges into an existing account by email.
-func (r *Service) LoginWithDiscord(ctx context.Context, code string) (string, error) {
+// session ID along with the local user ID and the Discord account ID. It never
+// merges into an existing account by email.
+func (r *Service) LoginWithDiscord(ctx context.Context, code string) (sessionID string, userID int64, discordID string, err error) {
 	token, err := r.config.discord.Exchange(ctx, code)
 	if err != nil {
-		return "", err
+		return "", 0, "", err
 	}
 
 	resp, err := r.config.discord.Client(ctx, token).Get("https://discord.com/api/users/@me")
 	if err != nil {
-		return "", err
+		return "", 0, "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("discord user request failed: %s", resp.Status)
+		return "", 0, "", fmt.Errorf("discord user request failed: %s", resp.Status)
 	}
 
 	var du discordUser
 	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
-		return "", err
+		return "", 0, "", err
 	}
 	if du.ID == "" {
-		return "", errors.New("discord returned no user id")
+		return "", 0, "", errors.New("discord returned no user id")
 	}
 
 	user := new(database.User)
@@ -202,7 +203,7 @@ func (r *Service) LoginWithDiscord(ctx context.Context, code string) (string, er
 		Scan(ctx)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
-			return "", err
+			return "", 0, "", err
 		}
 
 		name := du.GlobalName
@@ -218,11 +219,16 @@ func (r *Service) LoginWithDiscord(ctx context.Context, code string) (string, er
 			Avatar:       du.Avatar,
 		}
 		if _, err := r.db.NewInsert().Model(user).Exec(ctx); err != nil {
-			return "", err
+			return "", 0, "", err
 		}
 	}
 
-	return r.createSession(ctx, user.ID)
+	sessionID, err = r.createSession(ctx, user.ID)
+	if err != nil {
+		return "", 0, "", err
+	}
+
+	return sessionID, user.ID, du.ID, nil
 }
 
 // we probably dont need this function anymore...maybe

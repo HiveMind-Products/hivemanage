@@ -10,6 +10,7 @@ import (
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
 	"github.com/fivemanage/lite/internal/service/auth"
+	"github.com/fivemanage/lite/internal/service/invite"
 	"github.com/labstack/echo/v4"
 
 	internalauth "github.com/fivemanage/lite/internal/auth"
@@ -91,7 +92,10 @@ func (r *handler) loginHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, httputil.Response("Login successful"))
 }
 
-const discordStateCookie = "fmlite_oauth_state"
+const (
+	discordStateCookie = "fmlite_oauth_state"
+	inviteCookie       = "fmlite_invite"
+)
 
 // discordLoginHandler godoc
 // @Summary      Begin Discord OAuth login
@@ -143,7 +147,7 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse("Invalid OAuth state"))
 	}
 
-	sessionID, err := r.authService.LoginWithDiscord(ctx, code)
+	sessionID, userID, discordID, err := r.authService.LoginWithDiscord(ctx, code)
 	if err != nil {
 		return cc.JSON(http.StatusUnauthorized, httputil.ErrorResponse("Discord login failed"))
 	}
@@ -157,7 +161,26 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 	cc.SetCookie(r.authService.CreateSessionCookie(sessionID))
 	cc.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
 
+	// If the user arrived via an invite link, redeem it now that they have a session.
+	if inviteToken := inviteTokenFromCookie(cc); inviteToken != "" {
+		cc.SetCookie(&http.Cookie{Name: inviteCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+
+		err := r.inviteService.Accept(ctx, inviteToken, userID, discordID)
+		if errors.Is(err, invite.ErrInviteWrongDiscord) {
+			return cc.Redirect(http.StatusFound, "/invite/"+inviteToken+"?error=wrong_discord")
+		}
+	}
+
 	return cc.Redirect(http.StatusFound, "/")
+}
+
+// inviteTokenFromCookie returns the pending invite token, if any.
+func inviteTokenFromCookie(cc *appctx.Context) string {
+	cookie, err := cc.Cookie(inviteCookie)
+	if err != nil || cookie.Value == "" {
+		return ""
+	}
+	return cookie.Value
 }
 
 // logoutHandler godoc
