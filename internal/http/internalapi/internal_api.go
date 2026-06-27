@@ -10,6 +10,7 @@ import (
 	"github.com/fivemanage/lite/internal/service/auth"
 	"github.com/fivemanage/lite/internal/service/dataset"
 	"github.com/fivemanage/lite/internal/service/file"
+	"github.com/fivemanage/lite/internal/service/invite"
 	"github.com/fivemanage/lite/internal/service/member"
 	"github.com/fivemanage/lite/internal/service/organization"
 	"github.com/fivemanage/lite/internal/service/system"
@@ -23,6 +24,7 @@ func Add(
 	tokenService *token.Service,
 	organizationService *organization.Service,
 	memberService *member.Service,
+	inviteService *invite.Service,
 	fileService *file.Service,
 	datasetService *dataset.Service,
 	systemService *system.Service,
@@ -33,7 +35,7 @@ func Add(
 	authhander.RegisterRoutes(group, authService)
 	tokenhandler.RegisterRoutes(group, tokenService, authService)
 	organizationhandler.RegisterRoutes(group, organizationService, authService)
-	memberhandler.RegisterRoutes(group, memberService, authService)
+	memberhandler.RegisterRoutes(group, memberService, authService, inviteService)
 	datasethandler.RegisterRoutes(group, datasetService, authService)
 	registerStorageApi(group, fileService, authService)
 	registerSystemApi(group, systemService)
