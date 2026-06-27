@@ -97,6 +97,30 @@ func (s *Service) ListPending(ctx context.Context, organizationID string) ([]*da
 	return invites, nil
 }
 
+// Delete removes an invite by ID, scoped to the organization so an invite can
+// only be revoked from within the org it belongs to. It returns ErrInviteInvalid
+// if no matching invite exists.
+func (s *Service) Delete(ctx context.Context, organizationID, id string) error {
+	res, err := s.db.NewDelete().
+		Model((*database.Invite)(nil)).
+		Where("id = ?", id).
+		Where("organization_id = ?", organizationID).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrInviteInvalid
+	}
+
+	return nil
+}
+
 // Accept validates the invite token for the given logged-in user/Discord account,
 // creates a scoped organization membership, and marks the invite accepted. It is a
 // no-op on membership if the user already belongs to the organization.

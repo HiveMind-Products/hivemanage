@@ -137,6 +137,15 @@ export function OrganizationTeamRoute() {
     },
   });
 
+  const deleteInvite = useMutation({
+    mutationFn: (inviteId: string) =>
+      fetchApi("/api/dash/organization/" + organizationId + "/invite/" + inviteId, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Invites, organizationId] });
+      toast.success("Invite deleted");
+    },
+  });
+
   const members = membersQuery.data ?? [];
 
   function onRoleChange(nextRole: MemberRole) {
@@ -249,17 +258,28 @@ export function OrganizationTeamRoute() {
                           : ""}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        void copyToClipboard(inviteLink(invite));
-                        toast.success("Invite link copied");
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy link
-                    </Button>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void copyToClipboard(inviteLink(invite));
+                          toast.success("Invite link copied");
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy link
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        onClick={() => deleteInvite.mutate(invite.id)}
+                        disabled={deleteInvite.isPending}
+                        aria-label="Delete invite"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

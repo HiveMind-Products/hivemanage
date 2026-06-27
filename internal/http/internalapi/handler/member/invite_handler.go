@@ -1,6 +1,7 @@
 package member
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -61,6 +62,24 @@ func (h *handler) listInvitesHandler(c echo.Context) error {
 		out = append(out, inviteResponse(cc, invite))
 	}
 	return cc.JSON(http.StatusOK, httputil.Response(out))
+}
+
+func (h *handler) deleteInviteHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+	organizationID := cc.Param("organizationId")
+	inviteID := cc.Param("inviteId")
+
+	err := h.inviteService.Delete(ctx, organizationID, inviteID)
+	if err != nil {
+		if errors.Is(err, inviteservice.ErrInviteInvalid) {
+			return cc.JSON(http.StatusNotFound, httputil.ErrorResponse("Invite not found"))
+		}
+		slog.Error("failed to delete invite", "err", err)
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to delete invite"))
+	}
+
+	return cc.NoContent(http.StatusNoContent)
 }
 
 func inviteResponse(cc *appctx.Context, invite *database.Invite) api.InviteResponse {

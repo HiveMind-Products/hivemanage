@@ -24,4 +24,5 @@ func RegisterRoutes(group *echo.Group, memberService *member.Service, authServic
 	group.DELETE("/organization/:organizationId/member/:memberId", h.removeMemberHandler, writeTeam)
 	group.POST("/organization/:organizationId/invite", h.createInviteHandler, writeTeam)
 	group.GET("/organization/:organizationId/invite", h.listInvitesHandler, readTeam)
+	group.DELETE("/organization/:organizationId/invite/:inviteId", h.deleteInviteHandler, writeTeam)
 }
