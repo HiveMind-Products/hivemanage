@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -21,7 +22,8 @@ import (
 )
 
 type authConfig struct {
-	github *oauth2.Config
+	github  *oauth2.Config
+	discord *oauth2.Config
 }
 
 type Service struct {
@@ -34,7 +36,8 @@ func NewService(db *bun.DB) *Service {
 
 	return &Service{
 		config: authConfig{
-			github: githubConfig,
+			github:  githubConfig,
+			discord: auth.NewDiscordConfig(),
 		},
 		db: db,
 	}
@@ -151,6 +154,75 @@ func (r *Service) Callback(code string) *oauth2.Token {
 	}
 
 	return token
+}
+
+type discordUser struct {
+	ID         string `json:"id"`
+	Username   string `json:"username"`
+	GlobalName string `json:"global_name"`
+	Email      string `json:"email"`
+	Avatar     string `json:"avatar"`
+}
+
+// DiscordAuthURL returns the Discord authorize URL for the given CSRF state.
+func (r *Service) DiscordAuthURL(state string) string {
+	return r.config.discord.AuthCodeURL(state)
+}
+
+// LoginWithDiscord exchanges an OAuth code for the Discord user, upserts a local
+// user linked by (auth_provider=discord, auth_id=<discord id>), and returns a new
+// session ID. It never merges into an existing account by email.
+func (r *Service) LoginWithDiscord(ctx context.Context, code string) (string, error) {
+	token, err := r.config.discord.Exchange(ctx, code)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := r.config.discord.Client(ctx, token).Get("https://discord.com/api/users/@me")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("discord user request failed: %s", resp.Status)
+	}
+
+	var du discordUser
+	if err := json.NewDecoder(resp.Body).Decode(&du); err != nil {
+		return "", err
+	}
+	if du.ID == "" {
+		return "", errors.New("discord returned no user id")
+	}
+
+	user := new(database.User)
+	err = r.db.NewSelect().Model(user).
+		Where("auth_provider = ?", "discord").
+		Where("auth_id = ?", du.ID).
+		Scan(ctx)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return "", err
+		}
+
+		name := du.GlobalName
+		if name == "" {
+			name = du.Username
+		}
+		user = &database.User{
+			Name:         name,
+			Username:     du.Username,
+			Email:        du.Email,
+			AuthProvider: "discord",
+			AuthID:       du.ID,
+			Avatar:       du.Avatar,
+		}
+		if _, err := r.db.NewInsert().Model(user).Exec(ctx); err != nil {
+			return "", err
+		}
+	}
+
+	return r.createSession(ctx, user.ID)
 }
 
 // we probably dont need this function anymore...maybe

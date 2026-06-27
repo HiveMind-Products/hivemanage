@@ -91,6 +91,75 @@ func (r *handler) loginHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, httputil.Response("Login successful"))
 }
 
+const discordStateCookie = "fmlite_oauth_state"
+
+// discordLoginHandler godoc
+// @Summary      Begin Discord OAuth login
+// @Description  Redirect the user to Discord to authorize the application
+// @Tags         auth
+// @Success      302
+// @Router       /dash/auth/discord [get]
+func (r *handler) discordLoginHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+
+	state, err := crypt.GenerateSessionID()
+	if err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to start login"))
+	}
+
+	cc.SetCookie(&http.Cookie{
+		Name:     discordStateCookie,
+		Value:    state,
+		Path:     "/",
+		MaxAge:   600,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return cc.Redirect(http.StatusFound, r.authService.DiscordAuthURL(state))
+}
+
+// discordCallbackHandler godoc
+// @Summary      Discord OAuth callback
+// @Description  Handle the Discord redirect, create a session, and return to the dashboard
+// @Tags         auth
+// @Success      302
+// @Failure      400  {object}  httputil.ErrorResponseData
+// @Failure      401  {object}  httputil.ErrorResponseData
+// @Router       /dash/auth/discord/callback [get]
+func (r *handler) discordCallbackHandler(c echo.Context) error {
+	cc := c.(*appctx.Context)
+	ctx := cc.Request().Context()
+
+	code := cc.QueryParam("code")
+	state := cc.QueryParam("state")
+	if code == "" || state == "" {
+		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse("Missing code or state"))
+	}
+
+	stateCookie, err := cc.Cookie(discordStateCookie)
+	if err != nil || stateCookie.Value == "" || stateCookie.Value != state {
+		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse("Invalid OAuth state"))
+	}
+
+	sessionID, err := r.authService.LoginWithDiscord(ctx, code)
+	if err != nil {
+		return cc.JSON(http.StatusUnauthorized, httputil.ErrorResponse("Discord login failed"))
+	}
+
+	csrfToken, err := crypt.GenerateSessionID()
+	if err != nil {
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
+	}
+
+	cc.SetCookie(&http.Cookie{Name: discordStateCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+	cc.SetCookie(r.authService.CreateSessionCookie(sessionID))
+	cc.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
+
+	return cc.Redirect(http.StatusFound, "/")
+}
+
 // logoutHandler godoc
 // @Summary      Logout
 // @Description  Logout current user and clear session cookie
