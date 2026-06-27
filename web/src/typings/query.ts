@@ -6,4 +6,5 @@ export const QueryKeys = {
   DatasetFields: "dataset-fields",
   Logs: "logs",
   Members: "members",
+  Invites: "invites",
 } as const;

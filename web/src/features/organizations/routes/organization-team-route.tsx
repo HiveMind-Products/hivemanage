@@ -26,9 +26,10 @@ import type {
   OrganizationMember,
   UpdateMemberRequest,
 } from "@/typings/member";
+import type { CreateInviteRequest, InviteResponse } from "@/typings/invite";
 import { fetchApi } from "@/utils/http-util";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save, Trash2, UserPlus } from "lucide-react";
+import { Copy, Save, Trash2, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
@@ -53,10 +54,21 @@ export function OrganizationTeamRoute() {
   const [permissions, setPermissions] = useState<MemberPermissions>(() => presetPermissions(defaultRole));
   const [drafts, setDrafts] = useState<Record<number, { role: MemberRole; permissions: MemberPermissions }>>({});
 
+  const [inviteDiscord, setInviteDiscord] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>(defaultRole);
+  const [invitePermissions, setInvitePermissions] = useState<MemberPermissions>(() => presetPermissions(defaultRole));
+
   const membersQuery = useQuery({
     queryKey: [QueryKeys.Members, organizationId],
     enabled: !!organizationId,
     queryFn: () => fetchApi<OrganizationMember[]>("/api/dash/organization/" + organizationId + "/member"),
+  });
+
+  const invitesQuery = useQuery({
+    queryKey: [QueryKeys.Invites, organizationId],
+    enabled: !!organizationId && canWrite,
+    queryFn: () => fetchApi<InviteResponse[]>("/api/dash/organization/" + organizationId + "/invite"),
   });
 
   const invalidate = () => {
@@ -103,6 +115,28 @@ export function OrganizationTeamRoute() {
     onSuccess: () => invalidate(),
   });
 
+  const createInvite = useMutation({
+    mutationFn: (body: CreateInviteRequest) =>
+      fetchApi<InviteResponse>("/api/dash/organization/" + organizationId + "/invite", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Invites, organizationId] });
+      setInviteDiscord("");
+      setInviteEmail("");
+      setInviteRole(defaultRole);
+      setInvitePermissions(presetPermissions(defaultRole));
+      const link = data ? inviteLink(data) : undefined;
+      if (link) {
+        void copyToClipboard(link);
+        toast.success("Invite created", { description: "Link copied to clipboard" });
+      } else {
+        toast.success("Invite created");
+      }
+    },
+  });
+
   const members = membersQuery.data ?? [];
 
   function onRoleChange(nextRole: MemberRole) {
@@ -112,6 +146,20 @@ export function OrganizationTeamRoute() {
 
   function onCreate() {
     createMember.mutate({ username, email, role, permissions });
+  }
+
+  function onInviteRoleChange(nextRole: MemberRole) {
+    setInviteRole(nextRole);
+    setInvitePermissions(presetPermissions(nextRole));
+  }
+
+  function onCreateInvite() {
+    createInvite.mutate({
+      role: inviteRole,
+      permissions: invitePermissions,
+      discordUsername: inviteDiscord,
+      email: inviteEmail,
+    });
   }
 
   function draftFor(member: OrganizationMember) {
@@ -132,6 +180,8 @@ export function OrganizationTeamRoute() {
   }
 
   const createDisabled = !canWrite || !username || !email || createMember.isPending;
+  const inviteDisabled = !canWrite || (!inviteDiscord && !inviteEmail) || createInvite.isPending;
+  const invites = invitesQuery.data ?? [];
 
   return (
     <main className="container mx-auto max-w-6xl space-y-6 py-6">
@@ -152,6 +202,69 @@ export function OrganizationTeamRoute() {
             </Button>
           </div>
           <PermissionMatrix permissions={permissions} onChange={setPermissions} disabled={!canWrite} />
+        </section>
+      )}
+
+      {canWrite && (
+        <section className="space-y-4 rounded-md border p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Invite via Discord</h2>
+            <p className="text-sm text-muted-foreground">
+              Create a shareable link. The invitee signs in with Discord to join with the role below.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+            <Input
+              placeholder="Discord username (optional)"
+              value={inviteDiscord}
+              onChange={(event) => setInviteDiscord(event.target.value)}
+            />
+            <Input
+              placeholder="Email (optional)"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+            />
+            <RoleSelect value={inviteRole} onChange={onInviteRoleChange} />
+            <Button onClick={onCreateInvite} disabled={inviteDisabled}>
+              <UserPlus className="h-4 w-4" />
+              Create invite
+            </Button>
+          </div>
+          <PermissionMatrix permissions={invitePermissions} onChange={setInvitePermissions} disabled={!canWrite} />
+
+          {invites.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Pending invites</h3>
+              <div className="divide-y rounded-md border">
+                {invites.map((invite) => (
+                  <div key={invite.id} className="flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {invite.discordUsername || invite.email || "Anyone with the link"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {invite.role}
+                        {invite.expiresAt
+                          ? " · expires " + new Date(invite.expiresAt).toLocaleDateString()
+                          : ""}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void copyToClipboard(inviteLink(invite));
+                        toast.success("Invite link copied");
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy link
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -222,6 +335,19 @@ export function OrganizationTeamRoute() {
       </section>
     </main>
   );
+}
+
+// inviteLink turns the API's relative invite path into a full shareable URL.
+function inviteLink(invite: InviteResponse): string {
+  return invite.url.startsWith("http") ? invite.url : window.location.origin + invite.url;
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Clipboard may be unavailable (e.g. non-secure context); link is still shown in the list.
+  }
 }
 
 function RoleSelect({ value, onChange }: { value: MemberRole; onChange: (role: MemberRole) => void }) {

@@ -97,6 +97,22 @@ export function AuthForm({
               </div>
             </form>
           </Form>
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">OR</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full bg-[#5865F2] text-white hover:bg-[#4752c4] hover:text-white"
+            disabled={isPending}
+            onClick={() => {
+              window.location.href = "/api/dash/auth/discord";
+            }}
+          >
+            Login with Discord
+          </Button>
         </CardContent>
       </Card>
     </div>

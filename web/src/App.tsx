@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AuthRoute } from "./features/auth/routes/AuthRoute";
+import { InviteRoute } from "./features/auth/routes/InviteRoute";
 import { AppDashboard } from "./features/app/routes/AppDashboard";
 import { AppLayout } from "./features/app/components/AppLayout";
 import { ThemeProvider } from "./components/theme/ThemeProvider";
@@ -31,6 +32,7 @@ function App() {
             <Route path="*" element={<div>404</div>} />
             <Route path="/" element={<Navigate to="/app" />} />
             <Route path="/auth" element={<AuthRoute />} />
+            <Route path="/invite/:token" element={<InviteRoute />} />
             <Route path="/app">
               <Route index element={<OrganizationSelectRoute />} />
               <Route element={<ProtectedRoute />}>
