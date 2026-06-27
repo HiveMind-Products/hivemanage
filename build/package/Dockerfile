@@ -18,7 +18,7 @@ RUN pnpm run build
 
 
 # Backend
-FROM golang:1.24 AS backend
+FROM golang:1.26 AS backend
 
 WORKDIR /app
 
