@@ -1,6 +1,7 @@
 package http
 
 import (
+	"crypto/tls"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -51,6 +52,25 @@ func NewServer(
 ) *echo.Echo {
 	app := echo.New()
 	app.Debug = os.Getenv("ENV") == "dev"
+
+	// Behind Cloudflare + Traefik (Coolify) the public HTTPS connection terminates at
+	// the proxy, so requests reach Echo as plain HTTP. Trust the forwarded headers so
+	// the real client IP and public scheme are used.
+	app.IPExtractor = echo.ExtractIPFromXFFHeader()
+	app.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			if req.Header.Get(echo.HeaderXForwardedProto) == "https" {
+				req.URL.Scheme = "https"
+				if req.TLS == nil {
+					// Mark the request as TLS so c.Scheme()/c.IsTLS() report "https",
+					// which fixes Secure cookies and generated absolute URLs.
+					req.TLS = &tls.ConnectionState{}
+				}
+			}
+			return next(c)
+		}
+	})
 
 	app.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOriginFunc: allowedOrigin,
