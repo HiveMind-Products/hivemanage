@@ -83,16 +83,11 @@ func (h *v3FileHandler) list(c echo.Context) error {
 	if err != nil {
 		return v3Error(c, http.StatusInternalServerError, err.Error())
 	}
-	if page < 1 {
-		page = 1
-	}
-	if limit <= 0 || limit > file.MaxListLimit {
-		limit = min(max(limit, file.DefaultListLimit), file.MaxListLimit)
-	}
+	normPage, normLimit, _ := file.NormalizeListParams(page, limit)
 	return c.JSON(http.StatusOK, v3ListFilesResponse{
 		Status:     "ok",
 		Data:       items,
-		Pagination: api.PaginationV3{Page: page, Limit: limit, Total: total},
+		Pagination: api.PaginationV3{Page: normPage, Limit: normLimit, Total: total},
 	})
 }
 

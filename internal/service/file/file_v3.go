@@ -54,18 +54,26 @@ func (s *Service) CreateFileBase64V3(ctx context.Context, organizationID string,
 	return s.assetToFileItem(asset), nil
 }
 
-// ListFilesV3 returns a page of files with the V3 type/folder filters plus the
-// total count for pagination. page is 1-based.
-func (s *Service) ListFilesV3(ctx context.Context, organizationID, fileType, folder string, page, limit int) ([]*api.FileItemV3, int, error) {
-	page = max(page, 1)
+// NormalizeListParams clamps the V3 list pagination inputs and returns the
+// effective page (>=1), limit (1..MaxListLimit) and zero-based offset.
+func NormalizeListParams(page, limit int) (int, int, int) {
+	if page < 1 {
+		page = 1
+	}
 	if limit <= 0 {
 		limit = DefaultListLimit
 	}
 	if limit > MaxListLimit {
 		limit = MaxListLimit
 	}
+	return page, limit, (page - 1) * limit
+}
+
+// ListFilesV3 returns a page of files with the V3 type/folder filters plus the
+// total count for pagination. page is 1-based.
+func (s *Service) ListFilesV3(ctx context.Context, organizationID, fileType, folder string, page, limit int) ([]*api.FileItemV3, int, error) {
+	page, limit, offset := NormalizeListParams(page, limit)
 	folder = sanitizeFolder(folder)
-	offset := (page - 1) * limit
 
 	files, err := filequery.FindFilesV3(ctx, s.db, organizationID, fileType, folder, offset, limit)
 	if err != nil {

@@ -143,23 +143,31 @@ func (s *Service) createAsset(ctx context.Context, organizationID string, file m
 // default storage URL; url uses the custom CDN domain (BUCKET_DOMAIN) when set.
 // Both fall back to a signed URL if no public base is configured.
 func (s *Service) buildFileURLs(ctx context.Context, key string) (string, string) {
-	originalURL := s.storage.PublicURL(key)
-	var url string
-	if s.bucketDomain != "" {
-		url = strings.TrimRight(s.bucketDomain, "/") + "/" + key
-	}
-	if url == "" {
-		url = originalURL
-	}
-	if originalURL == "" {
-		originalURL = url
-	}
+	url, originalURL := composeFileURLs(s.bucketDomain, s.storage.PublicURL(key), key)
 	if url == "" {
 		// Last resort so the response is still usable for private buckets with no
 		// configured public base.
 		if signed, err := s.storage.SignedURL(ctx, key, SignedURLExpiry); err == nil {
 			url, originalURL = signed, signed
 		}
+	}
+	return url, originalURL
+}
+
+// composeFileURLs derives (url, originalUrl) from the configured CDN domain and
+// the default storage URL. url prefers the CDN domain; originalUrl is the default
+// storage URL. Each falls back to the other when one is empty.
+func composeFileURLs(bucketDomain, defaultStorageURL, key string) (string, string) {
+	originalURL := defaultStorageURL
+	var url string
+	if bucketDomain != "" {
+		url = strings.TrimRight(bucketDomain, "/") + "/" + key
+	}
+	if url == "" {
+		url = originalURL
+	}
+	if originalURL == "" {
+		originalURL = url
 	}
 	return url, originalURL
 }
