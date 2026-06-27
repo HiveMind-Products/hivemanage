@@ -28,4 +28,5 @@ func Add(group *echo.Group,
 	registerLogsApi(group, logService)
 	registerV3FileApi(group, fileService)
 	registerV3PresignedGenerate(group, fileService)
+	registerV3LogsApi(group, logService)
 }
