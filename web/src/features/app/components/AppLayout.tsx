@@ -17,6 +17,9 @@ import {
 import { ModeToggle } from "@/components/theme/ModeToggle";
 import { Params } from "@/typings/router";
 import { useCurrentOrganization } from "@/features/organizations/api/useCurrentOrganization";
+import { Suspense } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Button } from "@/components/ui/button";
 
 export function AppLayout() {
   const location = useLocation();
@@ -57,7 +60,33 @@ export function AppLayout() {
           </div>
         </header>
         <main className="p-4">
-          <Outlet />
+          <ErrorBoundary
+            fallback={(error, reset) => (
+              <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6 text-center">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold">
+                    Couldn't load this page
+                  </h2>
+                  <p className="max-w-md text-sm text-muted-foreground">
+                    {error.message || "An unexpected error occurred."}
+                  </p>
+                </div>
+                <Button variant="outline" onClick={reset}>
+                  Try again
+                </Button>
+              </div>
+            )}
+          >
+            <Suspense
+              fallback={
+                <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
+                  Loading…
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </SidebarInset>
     </SidebarProvider>

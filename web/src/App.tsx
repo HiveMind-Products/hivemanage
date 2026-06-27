@@ -1,6 +1,8 @@
 import { lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { toast } from "sonner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthRoute } from "./features/auth/routes/AuthRoute";
 import { InviteRoute } from "./features/auth/routes/InviteRoute";
 import { AppDashboard } from "./features/app/routes/AppDashboard";
@@ -22,7 +24,24 @@ const TokensRoute = lazy(() => import("./features/tokens/routes/tokens-route"));
 const DatasetRoute = lazy(() => import("./features/logs/routes/dataset-route"));
 const LogsRoute = lazy(() => import("./features/logs/routes/logs-route"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 30, // 30s before data is considered stale
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      // Generic fallback toast; individual mutations may override with a
+      // more specific message via their own onError.
+      onError: (error) => {
+        toast.error(
+          error instanceof Error ? error.message : "Something went wrong",
+        );
+      },
+    },
+  },
+});
 
 function App() {
   return (
@@ -30,6 +49,7 @@ function App() {
       <ThemeProvider>
         <BrowserRouter>
           <Toaster richColors position="bottom-right" />
+          <ErrorBoundary>
           <Routes>
             <Route path="*" element={<div>404</div>} />
             <Route path="/" element={<Navigate to="/app" />} />
@@ -60,6 +80,7 @@ function App() {
               </Route>
             </Route>
           </Routes>
+          </ErrorBoundary>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
