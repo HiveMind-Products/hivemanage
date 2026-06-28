@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -19,7 +23,12 @@ import {
 import { usePermission } from "@/features/auth/hooks/use-permission";
 import { QueryKeys } from "@/typings/query";
 import { permissionModules, presetPermissions, rolePresets } from "@/typings/permissions";
-import type { MemberPermissions, MemberRole, PermissionModule } from "@/typings/permissions";
+import type {
+  MemberPermissions,
+  MemberRole,
+  PermissionAccess,
+  PermissionModule,
+} from "@/typings/permissions";
 import type {
   CreateMemberRequest,
   CreateMemberResponse,
@@ -29,7 +38,7 @@ import type {
 import type { CreateInviteRequest, InviteResponse } from "@/typings/invite";
 import { fetchApi } from "@/utils/http-util";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Save, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, Copy, Save, Trash2, UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
@@ -221,7 +230,16 @@ export function OrganizationTeamRoute() {
               Add member
             </Button>
           </div>
-          <PermissionMatrix permissions={permissions} onChange={setPermissions} disabled={!canWrite} />
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              Access
+            </span>
+            <PermissionList
+              permissions={permissions}
+              onChange={setPermissions}
+              disabled={!canWrite}
+            />
+          </div>
         </section>
       )}
 
@@ -250,7 +268,16 @@ export function OrganizationTeamRoute() {
               Create invite
             </Button>
           </div>
-          <PermissionMatrix permissions={invitePermissions} onChange={setInvitePermissions} disabled={!canWrite} />
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              Access
+            </span>
+            <PermissionList
+              permissions={invitePermissions}
+              onChange={setInvitePermissions}
+              disabled={!canWrite}
+            />
+          </div>
 
           {invites.length > 0 && (
             <div className="space-y-2">
@@ -329,12 +356,18 @@ export function OrganizationTeamRoute() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <PermissionMatrix
-                      permissions={draft.permissions}
-                      disabled={!canWrite || draft.role === "ADMIN"}
-                      compact
-                      onChange={(nextPermissions) => updateDraft(member, { permissions: nextPermissions })}
-                    />
+                    <div className="flex items-center gap-2.5">
+                      <AccessSummary permissions={draft.permissions} />
+                      {canWrite && (
+                        <EditAccessPopover
+                          permissions={draft.permissions}
+                          disabled={draft.role === "ADMIN"}
+                          onChange={(nextPermissions) =>
+                            updateDraft(member, { permissions: nextPermissions })
+                          }
+                        />
+                      )}
+                    </div>
                   </TableCell>
                   {canWrite && (
                     <TableCell className="text-right">
@@ -398,51 +431,145 @@ function RoleSelect({ value, onChange }: { value: MemberRole; onChange: (role: M
   );
 }
 
-function PermissionMatrix({
+// A module's access collapses to one of three meaningful levels, since write
+// implies read in the permission model.
+type AccessLevel = "none" | "read" | "write";
+
+const accessLabels: Record<AccessLevel, string> = {
+  none: "No access",
+  read: "Read",
+  write: "Write",
+};
+
+function levelOf(access: PermissionAccess | undefined): AccessLevel {
+  if (access?.write) return "write";
+  if (access?.read) return "read";
+  return "none";
+}
+
+function accessFromLevel(level: AccessLevel): PermissionAccess {
+  return { read: level !== "none", write: level === "write" };
+}
+
+function AccessLevelSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: AccessLevel;
+  onChange: (level: AccessLevel) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(next) => onChange(next as AccessLevel)}
+      disabled={disabled}
+    >
+      <SelectTrigger size="sm" className="w-[132px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {(["none", "read", "write"] as AccessLevel[]).map((level) => (
+          <SelectItem key={level} value={level}>
+            {accessLabels[level]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function PermissionList({
   permissions,
   onChange,
   disabled,
-  compact = false,
 }: {
   permissions: MemberPermissions;
   onChange: (permissions: MemberPermissions) => void;
-  disabled: boolean;
-  compact?: boolean;
+  disabled?: boolean;
 }) {
   const rows = useMemo(() => permissionModules, []);
 
-  function setAccess(module: PermissionModule, key: "read" | "write", value: boolean) {
-    const next = { ...permissions, [module]: { ...permissions[module], [key]: value } };
-    if (key === "write" && value) next[module].read = true;
-    if (key === "read" && !value) next[module].write = false;
-    onChange(next);
-  }
-
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="divide-y rounded-md border">
       {rows.map((module) => (
-        <div key={module} className="rounded-md border p-2">
-          <div className="mb-1.5 text-xs font-medium">{moduleLabels[module]}</div>
-          <div className={compact ? "flex flex-wrap gap-x-3 gap-y-1" : "space-y-2"}>
-            <label className="flex items-center gap-1.5 text-xs">
-              <Checkbox
-                checked={!!permissions[module]?.read}
-                disabled={disabled}
-                onCheckedChange={(checked) => setAccess(module, "read", checked === true)}
-              />
-              Read
-            </label>
-            <label className="flex items-center gap-1.5 text-xs">
-              <Checkbox
-                checked={!!permissions[module]?.write}
-                disabled={disabled}
-                onCheckedChange={(checked) => setAccess(module, "write", checked === true)}
-              />
-              Write
-            </label>
-          </div>
+        <div
+          key={module}
+          className="flex items-center justify-between gap-3 px-3 py-2"
+        >
+          <span className="text-sm">{moduleLabels[module]}</span>
+          <AccessLevelSelect
+            value={levelOf(permissions[module])}
+            disabled={disabled}
+            onChange={(level) =>
+              onChange({ ...permissions, [module]: accessFromLevel(level) })
+            }
+          />
         </div>
       ))}
     </div>
+  );
+}
+
+// Compact, human-readable summary of a member's access for the table.
+function summarizeModules(modules: PermissionModule[]): string {
+  const names = modules.map((m) => moduleLabels[m]);
+  if (names.length <= 2) return names.join(", ");
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+}
+
+function AccessSummary({ permissions }: { permissions: MemberPermissions }) {
+  const write = permissionModules.filter((m) => permissions[m]?.write);
+  const read = permissionModules.filter(
+    (m) => permissions[m]?.read && !permissions[m]?.write,
+  );
+
+  let text: string;
+  if (write.length === permissionModules.length) {
+    text = "Full access";
+  } else if (write.length === 0 && read.length === 0) {
+    text = "No access";
+  } else if (write.length === 0 && read.length === permissionModules.length) {
+    text = "View only";
+  } else {
+    const parts: string[] = [];
+    if (write.length) parts.push(`Edit ${summarizeModules(write)}`);
+    if (read.length) parts.push(`View ${summarizeModules(read)}`);
+    text = parts.join(" · ");
+  }
+
+  return <span className="text-sm text-muted-foreground">{text}</span>;
+}
+
+function EditAccessPopover({
+  permissions,
+  onChange,
+  disabled,
+}: {
+  permissions: MemberPermissions;
+  onChange: (permissions: MemberPermissions) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          className="ml-auto gap-1.5"
+        >
+          Edit access
+          <ChevronDown className="size-3.5 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72">
+        <div className="space-y-2.5">
+          <p className="text-sm font-medium">Module access</p>
+          <PermissionList permissions={permissions} onChange={onChange} />
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
