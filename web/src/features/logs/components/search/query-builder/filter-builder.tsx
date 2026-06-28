@@ -307,7 +307,7 @@ function InternalFilterBuilder(props: InternalFilterBuilderProps) {
           "flex items-center space-x-1 rounded-sm px-2 text-sm shrink-0",
           props.hideClauseDropdown
             ? "bg-transparent"
-            : "bg-green-50 dark:bg-green-900",
+            : "bg-success/10",
         )}
       >
         {props.hideClauseDropdown ? null : (
@@ -358,7 +358,7 @@ function InternalFilterBuilder(props: InternalFilterBuilderProps) {
     return isEditing ? null : (
       <div
         className={cn(
-          "flex rounded-md h-7 text-sm text-green-800 dark:text-green-100 shrink-0 bg-green-50 dark:bg-green-900",
+          "flex rounded-md h-7 text-sm text-success shrink-0 bg-success/10",
         )}
       >
         <div className="flex items-center justify-center px-1 cursor-pointer">
@@ -421,7 +421,7 @@ function GroupClauseDropdown({
         <Button
           variant="link"
           size="sm"
-          className="text-green-800 dark:text-green-100 h-6"
+          className="text-success h-6"
         >
           {operator.toUpperCase()}
           <ChevronDown size={12} />

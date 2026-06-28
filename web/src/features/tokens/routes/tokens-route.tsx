@@ -8,20 +8,19 @@ import { usePermission } from "@/features/auth/hooks/use-permission";
 
 function TokensTableSkeleton() {
   return (
-    <div className="rounded-xl border shadow-sm">
-      <div className="h-10 bg-muted/30 border-b flex items-center px-4">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-16 ml-auto mr-32" />
-        <Skeleton className="h-4 w-16 ml-auto" />
+    <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="flex h-10 items-center gap-4 border-b bg-muted/40 px-4">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-3.5 w-16" />
       </div>
       {[...Array(3)].map((_, i) => (
         <div
           key={i}
-          className="h-12 border-b last:border-0 flex items-center px-4"
+          className="flex h-12 items-center gap-4 border-t border-border/60 px-4 first:border-t-0"
         >
           <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-4 w-12 ml-auto mr-32" />
-          <Skeleton className="h-8 w-8 ml-auto rounded-md" />
+          <Skeleton className="h-4 w-14" />
+          <Skeleton className="ml-auto size-8 rounded-md" />
         </div>
       ))}
     </div>
@@ -37,21 +36,19 @@ export default function TokensRoute() {
   }
 
   return (
-    <main className="container mx-auto py-10 max-w-5xl">
-      <div className="flex items-center justify-between mb-8">
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">API Tokens</h1>
-          <p className="text-muted-foreground">
-            Manage your API tokens to access the platform.
+          <h1 className="text-lg font-semibold tracking-tight">API tokens</h1>
+          <p className="text-sm text-muted-foreground">
+            Authenticate your servers and scripts with the platform's API.
           </p>
         </div>
         {canWrite && <CreateTokenDialog />}
       </div>
-      <section>
-        <Suspense fallback={<TokensTableSkeleton />}>
-          <TokensTable organizationId={params.organizationId} canWrite={canWrite} />
-        </Suspense>
-      </section>
-    </main>
+      <Suspense fallback={<TokensTableSkeleton />}>
+        <TokensTable organizationId={params.organizationId} canWrite={canWrite} />
+      </Suspense>
+    </div>
   );
 }

@@ -23,16 +23,17 @@ import { useCreateToken } from "../api/useCreateToken";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Copy, KeyRound } from "lucide-react";
+import { AlertTriangle, Check, Copy, KeyRound } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QueryKeys } from "@/typings/query";
 import { useParams } from "react-router";
 import { Params } from "@/typings/router";
+import { useCopyToClipboard } from "@/hooks/use-copy";
 
 export function CreateTokenDialog() {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
   const { mutateAsync, reset, data, isSuccess } = useCreateToken();
   const form = useForm<TokenParams>({
@@ -59,26 +60,17 @@ export function CreateTokenDialog() {
   function resetForm() {
     form.reset();
     reset();
-    setCopied(false);
   }
 
   function handleInteractOutside(e: Event) {
     e.preventDefault();
   }
 
-  function copyToClipboard() {
-    if (data?.token) {
-      navigator.clipboard.writeText(data.token);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <KeyRound size={16} className="mr-2" />
+          <KeyRound className="size-4" />
           Create token
         </Button>
       </DialogTrigger>
@@ -87,40 +79,43 @@ export function CreateTokenDialog() {
         onInteractOutside={handleInteractOutside}
         onPointerDownOutside={handleInteractOutside}
         onAnimationEnd={resetForm}
-        className="sm:max-w-[425px]"
+        className="sm:max-w-[440px]"
       >
         <DialogHeader>
-          <DialogTitle>
-            {isSuccess ? "Token created!" : "Create token"}
-          </DialogTitle>
+          <DialogTitle>{isSuccess ? "Token created" : "Create token"}</DialogTitle>
           <DialogDescription>
             {isSuccess
-              ? "Make sure to copy your new personal access token now. You won't be able to see it again!"
-              : "Create a new token to access the platform's API."}
+              ? "Copy your token now — for your security, it won't be shown again."
+              : "Create a new token to authenticate with the platform's API."}
           </DialogDescription>
         </DialogHeader>
         {isSuccess && data ? (
-          <div className="space-y-4 py-4">
-            <div className="relative">
-              <div className="rounded-lg bg-muted p-4 font-mono text-sm break-all pr-12 border">
+          <div className="space-y-4 pt-2">
+            <div className="flex items-stretch gap-2">
+              <code className="min-w-0 flex-1 break-all rounded-md border bg-muted px-3 py-2.5 font-mono text-sm">
                 {data.token}
-              </div>
+              </code>
               <Button
+                type="button"
+                variant="outline"
                 size="icon"
-                variant="ghost"
-                className="absolute right-2 top-2 h-8 w-8"
-                onClick={copyToClipboard}
+                aria-label="Copy token"
+                className="h-auto shrink-0"
+                onClick={() => copy(data.token, "Token copied to clipboard")}
               >
                 {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="size-4 text-success" />
                 ) : (
-                  <Copy className="h-4 w-4" />
+                  <Copy className="size-4" />
                 )}
               </Button>
             </div>
-            <div className="bg-destructive/10 text-destructive text-xs p-3 rounded-md border border-destructive/20 font-medium">
-              Warning: You will not be able to see this token again after closing
-              this dialog.
+            <div className="flex items-start gap-2.5 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-foreground">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+              <span>
+                This is the only time the full token is displayed. Store it
+                somewhere safe before closing this dialog.
+              </span>
             </div>
             <DialogFooter>
               <Button onClick={() => setOpen(false)} className="w-full">
@@ -132,7 +127,7 @@ export function CreateTokenDialog() {
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleOnSubmit)}
-              className="space-y-4 py-4"
+              className="space-y-4 pt-2"
             >
               <FormField
                 control={form.control}
@@ -143,22 +138,23 @@ export function CreateTokenDialog() {
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="e.g. My Website Token"
+                        placeholder="e.g. Production website"
                         type="text"
                         autoComplete="off"
+                        autoFocus
                       />
                     </FormControl>
                     <FormDescription>
-                      A unique name to identify this token.
+                      A name to help you recognize this token later.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <DialogFooter className="pt-4">
+              <DialogFooter className="pt-2">
                 <Button type="submit" disabled={isPending} className="w-full">
-                  {isPending ? "Creating..." : "Create Token"}
+                  {isPending ? "Creating…" : "Create token"}
                 </Button>
               </DialogFooter>
             </form>

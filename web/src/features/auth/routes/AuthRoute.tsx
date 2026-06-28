@@ -1,10 +1,9 @@
 import { Navigate } from "react-router";
 import { AuthForm } from "../components/AuthForm";
-import { useTheme } from "@/components/theme/useTheme";
+import { Logo } from "@/components/brand/logo";
 import { useSession } from "../api/useSession";
 
 export const AuthRoute: React.FC = () => {
-  const { theme } = useTheme();
   const { data: session, isPending: sessionPending } = useSession();
 
   if (sessionPending) {
@@ -15,24 +14,28 @@ export const AuthRoute: React.FC = () => {
     return <Navigate to="/app" replace />;
   }
 
-  let logoSrc = "/logos/logo-white.png";
-  if (theme === "dark") {
-    logoSrc = "/logos/logo-black.png";
-  }
   return (
-    <main className="min-h-screen bg-gradient-to-br from-background via-gray-100 to-gray-200 dark:from-background dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-      <div className="flex w-full items-center justify-center p-6 md:p-10">
-        <div className="w-full max-w-sm">
-          <div className="flex flex-col items-center mb-8">
-            <img
-              src={logoSrc}
-              alt="Hivemanage Logo"
-              className="w-55 h-10 mb-4 drop-shadow-lg"
-            />
-            <h1 className="text-3xl font-bold mb-1 text-center">Sign in to Hivemanage Lite</h1>
-          </div>
-          <AuthForm />
+    <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background p-6">
+      {/* Single, quiet brand glow — not a gradient wash */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[-10%] h-[420px] w-[640px] -translate-x-1/2 rounded-full opacity-[0.07] blur-3xl"
+        style={{ background: "var(--primary)" }}
+      />
+      <div className="relative w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Logo className="mb-4 size-10" />
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Sign in to hive<span className="text-muted-foreground">manage</span>
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Your self-hosted CDN and observability dashboard.
+          </p>
         </div>
+        <AuthForm />
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          hivemanage, by HiveMind
+        </p>
       </div>
     </main>
   );

@@ -235,7 +235,7 @@ export function LogDataSheet() {
                 className={cn(
                   "text-md inline-flex items-center rounded-md px-2 py-1 font-medium ring-1 ring-inset",
                   LOG_LEVELS[log.Metadata.severity] ??
-                    "bg-gray-400/10 text-gray-400 ring-gray-400/20",
+                    "bg-muted text-muted-foreground ring-border",
                 )}
               >
                 {log?.Metadata.severity}

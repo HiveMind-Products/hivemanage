@@ -163,17 +163,13 @@ export default function FileRoute() {
                   </span>
                   <div className="flex items-center gap-2">
                     {isImage ? (
-                      <FileImage className="h-4 w-4 text-blue-500" />
+                      <FileImage className="size-4 text-info" />
                     ) : isVideo ? (
-                      <FileVideo className="h-4 w-4 text-purple-500" />
+                      <FileVideo className="size-4 text-primary" />
                     ) : (
-                      <FileIcon className="h-4 w-4 text-gray-500" />
+                      <FileIcon className="size-4 text-muted-foreground" />
                     )}
-                    <p className="text-sm">
-                      {data.type
-                        ? data.type.split("/")[1]?.toUpperCase() || "UNKNOWN"
-                        : "UNKNOWN"}
-                    </p>
+                    <p className="text-sm capitalize">{data.type || "Unknown"}</p>
                   </div>
                 </div>
                 <div className="space-y-1">

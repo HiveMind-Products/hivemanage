@@ -19,10 +19,11 @@ import { Params } from "@/typings/router";
 
 interface DeleteTokenDialogProps {
   tokenId: number;
+  identifier?: string;
 }
 
 export function DeleteTokenDialog(props: DeleteTokenDialogProps) {
-  const { tokenId } = props;
+  const { tokenId, identifier } = props;
 
   const [isPending, startTransition] = useTransition();
 
@@ -46,17 +47,20 @@ export function DeleteTokenDialog(props: DeleteTokenDialogProps) {
         <Button
           size="icon"
           variant="ghost"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
+          aria-label="Delete token"
+          className="size-8 text-muted-foreground transition-colors hover:text-destructive"
         >
-          <Trash size={16} />
+          <Trash className="size-4" />
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Token</DialogTitle>
+          <DialogTitle>
+            Delete {identifier ? `"${identifier}"` : "token"}?
+          </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete this token? This action cannot be
-            undone and any applications using this token will lose access.
+            This permanently revokes the token. Any application using it will
+            immediately lose access. This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4">
@@ -68,7 +72,7 @@ export function DeleteTokenDialog(props: DeleteTokenDialogProps) {
             onClick={handleDelete}
             disabled={isPending}
           >
-            {isPending ? "Deleting..." : "Delete Token"}
+            {isPending ? "Deleting…" : "Delete token"}
           </Button>
         </DialogFooter>
       </DialogContent>

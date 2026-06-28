@@ -1,11 +1,25 @@
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import { Asset, AssetURLResponse } from "@/typings/asset";
 import { fetchApi } from "@/utils/http-util";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { ClipboardCopy, FileAudioIcon, ImageIcon, VideoIcon } from "lucide-react";
+import {
+  Check,
+  FileAudioIcon,
+  ImageIcon,
+  Link2,
+  VideoIcon,
+} from "lucide-react";
 import type { MouseEvent } from "react";
 import { Link, useParams } from "react-router";
+import { useCopyToClipboard } from "@/hooks/use-copy";
+import { cn } from "@/lib/utils";
 
 export function formatFilename(key: string) {
   const parts = key.split("/");
@@ -16,6 +30,12 @@ function assetDisplayName(asset: Asset) {
   return asset.originalName || asset.key.replace(/^(image|video|audio)\//, "");
 }
 
+const typeIcon: Record<string, { Icon: typeof ImageIcon; tint: string }> = {
+  image: { Icon: ImageIcon, tint: "text-info" },
+  video: { Icon: VideoIcon, tint: "text-primary" },
+  audio: { Icon: FileAudioIcon, tint: "text-success" },
+};
+
 export function assetColumns(): ColumnDef<Asset>[] {
   return [
     {
@@ -24,17 +44,20 @@ export function assetColumns(): ColumnDef<Asset>[] {
       cell: (info) => {
         const asset = info.row.original;
         const displayValue = assetDisplayName(asset);
-        let Icon = ImageIcon;
-
-        if (asset.type === "video") Icon = VideoIcon;
-        else if (asset.type === "audio") Icon = FileAudioIcon;
+        const { Icon, tint } = typeIcon[asset.type] ?? typeIcon.image;
 
         return (
-          <Link to={asset.id} className="flex items-center">
-            <Icon size={18} className="mr-2 text-gray-400" />
-            <span>
-              <p className="hover:underline">{formatFilename(displayValue)}</p>
-              <p className="text-xs text-muted-foreground">{asset.type}</p>
+          <Link
+            to={asset.id}
+            className="group flex items-center gap-2.5 py-0.5"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+              <Icon className={cn("size-4", tint)} />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium group-hover:text-primary">
+                {formatFilename(displayValue)}
+              </span>
             </span>
           </Link>
         );
@@ -45,17 +68,29 @@ export function assetColumns(): ColumnDef<Asset>[] {
       header: "Type",
       cell: (info) => {
         const type = info.getValue() as string;
-        return type.charAt(0).toUpperCase() + type.slice(1);
+        return (
+          <Badge variant="outline" className="font-normal capitalize">
+            {type}
+          </Badge>
+        );
       },
     },
     {
       accessorKey: "createdAt",
-      header: "Created At",
-      cell: (info) => format(new Date(info.getValue() as Date), "yyyy-MM-dd HH:mm:ss"),
+      header: "Created",
+      cell: (info) => {
+        const value = info.getValue();
+        if (!value) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="text-muted-foreground tabular-nums">
+            {format(new Date(value as Date), "yyyy-MM-dd HH:mm")}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "key",
-      header: "URL",
+      header: () => <span className="sr-only">URL</span>,
       cell: (info) => <UrlCell asset={info.row.original} />,
     },
   ];
@@ -63,6 +98,7 @@ export function assetColumns(): ColumnDef<Asset>[] {
 
 function UrlCell({ asset }: { asset: Asset }) {
   const { organizationId } = useParams<{ organizationId: string }>();
+  const { copied, copy } = useCopyToClipboard();
 
   async function copySignedURL(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
@@ -71,21 +107,31 @@ function UrlCell({ asset }: { asset: Asset }) {
     const response = await fetchApi<AssetURLResponse>(
       `/api/dash/storage/${organizationId}/file/${asset.id}/url`,
     );
-    if (response?.url) await navigator.clipboard.writeText(response.url);
+    if (response?.url) copy(response.url, "Link copied to clipboard");
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button onClick={copySignedURL} className="cursor-pointer rounded-md bg-accent/60 p-2 hover:bg-accent">
-            <ClipboardCopy size={16} />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Copy signed URL</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div className="flex justify-end">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={copySignedURL}
+              aria-label="Copy signed URL"
+              className="flex size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {copied ? (
+                <Check className="size-4 text-success" />
+              ) : (
+                <Link2 className="size-4" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Copy signed URL</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
   );
 }

@@ -1,10 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Wordmark } from "@/components/brand/logo";
 import { useCreateOrganization } from "../api/useCreateOrganization";
 import { useForm } from "react-hook-form";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -17,7 +26,7 @@ import {
 } from "@/typings/organizations";
 
 export function NewOrganizationRoute() {
-  const { mutate } = useCreateOrganization();
+  const { mutate, isPending } = useCreateOrganization();
 
   const formMethods = useForm<CreateOrganizationSchema>({
     defaultValues: {
@@ -31,39 +40,50 @@ export function NewOrganizationRoute() {
   }
 
   return (
-    <div className="sm:mx-auto sm:max-w-2xl h-screen flex flex-col justify-center space-y-8">
-      <h3 className="text-tremor-title font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
-        Create organization
-      </h3>
-      <Form {...formMethods}>
-        <form
-          className="mt-8"
-          onSubmit={formMethods.handleSubmit(handleCreateOrganization)}
-        >
-          <div className="space-y-4">
-            <FormField
-              control={formMethods.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Organization Name<span className="text-red-500">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div className="flex items-center justify-end space-x-4 mt-4">
-            <Button size="sm" type="submit">
-              Create organization
-            </Button>
-          </div>
-        </form>
-      </Form>
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6">
+      <Wordmark markClassName="size-7" className="text-base" />
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Create your organization</CardTitle>
+          <CardDescription>
+            Organizations hold your files, logs, and team. You can rename it
+            later.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...formMethods}>
+            <form
+              className="flex flex-col gap-6"
+              onSubmit={formMethods.handleSubmit(handleCreateOrganization)}
+            >
+              <FormField
+                control={formMethods.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization name</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Acme Roleplay"
+                        autoFocus
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Usually your community or company name.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isPending}>
+                {isPending ? "Creating…" : "Create organization"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

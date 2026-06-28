@@ -12,6 +12,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/brand/logo";
 
 export function OrganizationSelectRoute() {
   const { data, isLoading } = useOrganizations();
@@ -37,7 +38,11 @@ export function OrganizationSelectRoute() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
   }
 
   if (!data || data.length === 0) {
@@ -45,59 +50,60 @@ export function OrganizationSelectRoute() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md flex flex-col bg-accent">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6">
+      <Wordmark markClassName="size-7" className="text-base" />
+      <Card className="flex w-full max-w-md flex-col">
         <CardHeader className="border-b">
-          <CardTitle className="text-center text-2xl">
-            Select Workspace
-          </CardTitle>
+          <CardTitle className="text-base">Select a workspace</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="h-72 px-4 py-4 overflow-y-auto">
-            <Button
-              variant="outline"
-              className="w-full justify-start mb-2"
-              onClick={() => navigate("/app/new-organization")}
-            >
-              <CirclePlus className="mr-2 h-4 w-4" />
-              Create New Team
-            </Button>
-            <ul className="flex flex-col gap-2">
+          <div className="max-h-72 overflow-y-auto px-3 py-3">
+            <ul className="flex flex-col gap-1">
               {data.map((org) => (
                 <li key={org.id} className="w-full">
                   <NavLink
                     to={`/app/${org.id}`}
                     state={{ organization: org }}
-                    className="flex items-center gap-4 rounded-lg py-2 px-4 hover:bg-accent transition-colors"
+                    className="group flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-accent"
                   >
-                    <span className="flex items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold h-10 w-10">
-                      {org.name.charAt(0)}
+                    <span className="flex size-9 items-center justify-center rounded-md bg-primary/10 text-sm font-semibold text-primary">
+                      {org.name.charAt(0).toUpperCase()}
                     </span>
-                    <div className="grow">
-                      <p className="text-sm font-medium">{org.name}</p>
-                      <p className="text-xs text-muted-foreground">
+                    <div className="min-w-0 grow">
+                      <p className="truncate text-sm font-medium">{org.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
                         ID: {org.id}
                       </p>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground" />
                   </NavLink>
                 </li>
               ))}
             </ul>
           </div>
+          <div className="border-t p-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => navigate("/app/new-organization")}
+            >
+              <CirclePlus className="size-4" />
+              Create new workspace
+            </Button>
+          </div>
         </CardContent>
-        <CardFooter className="flex justify-between items-center border-t px-4 py-3">
-          <span className="text-sm text-muted-foreground">
+        <CardFooter className="flex items-center justify-between border-t px-4 py-3">
+          <span className="text-xs text-muted-foreground">
             {orgCount} workspace{orgCount === 1 ? "" : "s"}
           </span>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={logout}
-            className="gap-1.5"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
           >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
+            <LogOut className="size-4" />
+            Sign out
           </Button>
         </CardFooter>
       </Card>

@@ -90,40 +90,38 @@ export function DataTable<T extends Asset>({
           isLoading={isLoading}
         />
       ) : null */}
-      <div className="flex-1 text-sm text-muted-foreground">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
-      </div>
-      <div ref={tableContainerRef} className="mt-2 rounded-md border">
+      <div ref={tableContainerRef} className="overflow-hidden rounded-lg border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             {table.getHeaderGroups()?.map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
                 {headerGroup.headers?.map((header) => {
                   return (
-                    <TableHead key={header.id} colSpan={header.colSpan}>
-                      {header.isPlaceholder ? null : (
-                        <div>
-                          {flexRender(
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      className="h-9 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
                             header.column.columnDef.header,
                             header.getContext(),
                           )}
-                        </div>
-                      )}
                     </TableHead>
                   );
                 })}
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody className="divide-y">
+          <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => {
                 return (
-                  <TableRow key={row.id} className="cursor-pointer">
+                  <TableRow key={row.id} className="border-border/60">
                     {row.getVisibleCells().map((cell) => {
                       return (
-                        <TableCell key={cell.id} className="py-2">
+                        <TableCell key={cell.id} className="py-2.5">
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext(),
@@ -138,7 +136,7 @@ export function DataTable<T extends Asset>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No results.
                 </TableCell>
@@ -147,23 +145,33 @@ export function DataTable<T extends Asset>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+      <div className="flex items-center justify-between gap-2 py-4">
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {table.getFilteredSelectedRowModel().rows.length > 0
+            ? `${table.getFilteredSelectedRowModel().rows.length} selected`
+            : `${totalCount.toLocaleString()} item${totalCount === 1 ? "" : "s"}`}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <span className="px-1 text-sm tabular-nums text-muted-foreground">
+            {pagination.pageIndex + 1} / {table.getPageCount() || 1}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

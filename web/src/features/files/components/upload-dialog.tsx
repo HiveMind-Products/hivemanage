@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { toast } from "sonner";
 import { useUploadFile } from "../api/useUploadFile";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500mb
@@ -119,31 +120,41 @@ export function UploadDialog() {
 
   const handleUpload = async () => {
     const uploadPromises = uploadState.files.map(async (file) => {
-      if (file.status === FileUploadStatus.QUEUED) {
+      if (file.status !== FileUploadStatus.QUEUED) return "skip" as const;
+
+      dispatch({
+        type: "UPDATE_FILE_STATUS",
+        id: file.id,
+        status: FileUploadStatus.PENDING,
+      });
+
+      try {
+        await mutateAsync(file.file);
         dispatch({
           type: "UPDATE_FILE_STATUS",
           id: file.id,
-          status: FileUploadStatus.PENDING,
+          status: FileUploadStatus.SUCCESS,
         });
-
-        try {
-          await mutateAsync(file.file);
-          dispatch({
-            type: "UPDATE_FILE_STATUS",
-            id: file.id,
-            status: FileUploadStatus.SUCCESS,
-          });
-        } catch {
-          dispatch({
-            type: "UPDATE_FILE_STATUS",
-            id: file.id,
-            status: FileUploadStatus.ERROR,
-          });
-        }
+        return "success" as const;
+      } catch {
+        dispatch({
+          type: "UPDATE_FILE_STATUS",
+          id: file.id,
+          status: FileUploadStatus.ERROR,
+        });
+        return "error" as const;
       }
     });
 
-    await Promise.all(uploadPromises);
+    const results = await Promise.all(uploadPromises);
+    const succeeded = results.filter((r) => r === "success").length;
+    const failed = results.filter((r) => r === "error").length;
+    if (succeeded > 0) {
+      toast.success(`Uploaded ${succeeded} file${succeeded > 1 ? "s" : ""}`);
+    }
+    if (failed > 0) {
+      toast.error(`${failed} file${failed > 1 ? "s" : ""} failed to upload`);
+    }
   };
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -166,21 +177,30 @@ export function UploadDialog() {
         <div
           {...getRootProps()}
           className={cn(
-            "border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center transition-colors cursor-pointer",
-            isDragActive && "border-primary bg-muted/50",
+            "cursor-pointer rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors duration-150",
+            isDragActive
+              ? "border-primary bg-primary/5"
+              : "hover:border-border-strong hover:bg-muted/40",
           )}
         >
           <input {...getInputProps()} />
           <div className="flex flex-col items-center justify-center gap-4">
-            <div className="p-4 bg-muted rounded-full">
-              <UploadCloud className="h-8 w-8 text-muted-foreground" />
+            <div
+              className={cn(
+                "flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors",
+                isDragActive && "bg-primary/10 text-primary",
+              )}
+            >
+              <UploadCloud className="size-7" />
             </div>
             <div className="space-y-1">
               <h3 className="text-sm font-semibold">
-                Click to upload or drag and drop
+                {isDragActive
+                  ? "Drop to upload"
+                  : "Drag and drop, or paste from clipboard"}
               </h3>
               <p className="text-xs text-muted-foreground">
-                SVG, PNG, JPG or GIF (max. 500MB)
+                Images, video or audio — up to 500MB each
               </p>
             </div>
             <Button type="button" onClick={open} variant="secondary" size="sm">
@@ -216,26 +236,26 @@ export function UploadDialog() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {fileUpload.status === FileUploadStatus.QUEUED && (
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                      <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
                         Queued
                       </span>
                     )}
                     {fileUpload.status === FileUploadStatus.PENDING && (
-                      <div className="flex items-center gap-2 text-xs text-amber-500 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
-                        Uploading...
+                      <div className="flex items-center gap-2 rounded-full border border-warning/20 bg-warning/10 px-2 py-1 text-xs text-warning">
+                        <div className="size-3 animate-spin rounded-full border-2 border-warning border-t-transparent" />
+                        Uploading…
                       </div>
                     )}
                     {fileUpload.status === FileUploadStatus.SUCCESS && (
-                      <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <span className="flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-1 text-xs text-success">
+                        <CheckCircle2 className="size-3" />
                         Uploaded
                       </span>
                     )}
                     {fileUpload.status === FileUploadStatus.ERROR && (
-                      <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-200">
-                        <XCircle className="h-3 w-3" />
-                        Error
+                      <span className="flex items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-xs text-destructive">
+                        <XCircle className="size-3" />
+                        Failed
                       </span>
                     )}
                     <Button

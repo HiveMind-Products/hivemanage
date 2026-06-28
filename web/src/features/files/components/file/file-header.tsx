@@ -43,13 +43,13 @@ export function FileHeader({
           </Link>
         </div>
         <h1
-          className="text-3xl font-bold tracking-tight truncate max-w-2xl"
+          className="max-w-2xl truncate text-xl font-semibold tracking-tight"
           title={fileName}
         >
           {fileName}
         </h1>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="font-mono text-xs">
+          <Badge variant="secondary" className="font-mono text-xs capitalize">
             {file.type}
           </Badge>
           <span className="text-sm text-muted-foreground">•</span>

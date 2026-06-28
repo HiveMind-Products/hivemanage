@@ -665,7 +665,7 @@ export function LogsTable({
                                       className={cn(
                                         "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-primary/50 z-10",
                                         header.column.getIsResizing() &&
-                                          "bg-blue-500",
+                                          "bg-primary",
                                       )}
                                       style={{
                                         transform: `translateX(${

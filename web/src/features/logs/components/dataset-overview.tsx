@@ -1,5 +1,7 @@
 import { lazy } from "react";
 import { List } from "@/components/ui/list";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Layers } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useListDatasets } from "../api/dataset-api";
 import { usePermission } from "@/features/auth/hooks/use-permission";
@@ -20,26 +22,40 @@ export default function DatasetOverview({
     navigate(`${id}`);
   }
 
+  const isEmpty = datasets && datasets.length === 0;
+
   return (
-    <div className="w-full flex justify-center">
-      <div className="w-full max-w-6xl mx-auto">
-        <List>
-          <List.Header title="Datasets">
-            {canWrite && <DatasetSheet organizationId={organizationId} />}
-          </List.Header>
-          <div>
-            {datasets &&
-              datasets.map((dataset) => (
-                <List.Item
-                  key={dataset.id}
-                  title={dataset.name}
-                  subtitle={dataset.description}
-                  onClick={() => navigateToDataset(dataset.id)}
-                />
-              ))}
-          </div>
-        </List>
+    <div className="mx-auto w-full max-w-4xl space-y-5">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Datasets</h1>
+          <p className="text-sm text-muted-foreground">
+            Streams of logs ingested from your servers and scripts.
+          </p>
+        </div>
+        {canWrite && !isEmpty && <DatasetSheet organizationId={organizationId} />}
       </div>
+
+      {isEmpty ? (
+        <EmptyState
+          icon={Layers}
+          title="No datasets yet"
+          description="Create a dataset to start ingesting and querying logs."
+          action={canWrite ? <DatasetSheet organizationId={organizationId} /> : undefined}
+        />
+      ) : (
+        <List>
+          {datasets &&
+            datasets.map((dataset) => (
+              <List.Item
+                key={dataset.id}
+                title={dataset.name}
+                subtitle={dataset.description}
+                onClick={() => navigateToDataset(dataset.id)}
+              />
+            ))}
+        </List>
+      )}
     </div>
   );
 }

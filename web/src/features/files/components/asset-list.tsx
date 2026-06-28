@@ -6,6 +6,8 @@ import { useParams, useSearchParams } from "react-router";
 import { Params } from "@/typings/router";
 import { assetColumns } from "./asset-columns";
 import { useStorageFiles } from "../api/useStorageFiles";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FileX2, FolderOpen } from "lucide-react";
 
 import { AssetGridView } from "./asset-grid-view";
 
@@ -30,6 +32,22 @@ export function AssetList() {
     page: page,
     pageSize: 20,
   });
+
+  if (data && data.files.length === 0) {
+    return search ? (
+      <EmptyState
+        icon={FileX2}
+        title="No files match your search"
+        description={`Nothing found for “${search}”. Try a different term or clear the filter.`}
+      />
+    ) : (
+      <EmptyState
+        icon={FolderOpen}
+        title="No files yet"
+        description="Upload your first asset and it will show up here."
+      />
+    );
+  }
 
   return (
     <div>

@@ -1,8 +1,10 @@
 export const LOG_LEVELS: Record<string, string> = {
-  error: "bg-red-400/10 text-red-400 ring-red-400/20",
-  info: "bg-blue-400/10 text-blue-400 ring-blue-400/30",
-  warning: "bg-yellow-400/10 text-yellow-500 ring-yellow-400/20",
-  warn: "bg-yellow-400/10 text-yellow-500 ring-yellow-400/20",
+  error: "bg-error/10 text-error ring-error/20",
+  critical: "bg-error/10 text-error ring-error/20",
+  info: "bg-info/10 text-info ring-info/30",
+  warning: "bg-warning/10 text-warning ring-warning/20",
+  warn: "bg-warning/10 text-warning ring-warning/20",
+  success: "bg-success/10 text-success ring-success/20",
 };
 
 export const REFRESH_INTERVALS = [

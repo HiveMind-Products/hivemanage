@@ -57,29 +57,36 @@ export default function StorageRoute() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative w-full max-w-2xl">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search files..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-          <Select value={type} onValueChange={handleTypeChange}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="image">Images</SelectItem>
-              <SelectItem value="video">Videos</SelectItem>
-              <SelectItem value="audio">Audio</SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight">Storage</h1>
+        <p className="text-sm text-muted-foreground">
+          Upload and manage your assets and media.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search files…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={type} onValueChange={handleTypeChange}>
+          <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="image">Images</SelectItem>
+            <SelectItem value="video">Videos</SelectItem>
+            <SelectItem value="audio">Audio</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-2 sm:ml-auto">
           <ToggleGroup
             type="single"
             value={view}
@@ -87,17 +94,17 @@ export default function StorageRoute() {
             variant="outline"
           >
             <ToggleGroupItem value="list" aria-label="List view">
-              <List className="h-4 w-4" />
+              <List className="size-4" />
             </ToggleGroupItem>
             <ToggleGroupItem value="grid" aria-label="Grid view">
-              <Grid2X2 className="h-4 w-4" />
+              <Grid2X2 className="size-4" />
             </ToggleGroupItem>
           </ToggleGroup>
+          {canWrite && <UploadDialog />}
         </div>
-        {canWrite && <UploadDialog />}
       </div>
 
-      <div className="mt-4">
+      <div>
         <Suspense
           fallback={
             view === "list" ? (

@@ -170,7 +170,7 @@ export function QueryBuilderDropdown({
               className={cn(
                 isRoot
                   ? "text-foreground"
-                  : "text-green-800 dark:text-green-100",
+                  : "text-success",
               )}
             />
           ) : (
