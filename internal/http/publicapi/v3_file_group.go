@@ -33,7 +33,10 @@ func (h *v3FileHandler) upload(c echo.Context) error {
 	if err != nil {
 		return v3Error(c, http.StatusUnauthorized, "Unauthorized: "+err.Error())
 	}
-	f, header, err := httputil.File(c.Request(), "file")
+	// Prefer the documented "file" field, but also accept media-typed field
+	// names (image/video/audio) so FiveM clients that post under those names
+	// (e.g. screenshot-basic, which defaults to "image") work unchanged.
+	f, header, err := httputil.FileAny(c.Request(), "image", "video", "audio")
 	if err != nil {
 		return v3Error(c, http.StatusBadRequest, "missing file: "+err.Error())
 	}
