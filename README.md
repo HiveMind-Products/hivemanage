@@ -81,7 +81,7 @@ Successful responses use the envelope `{ "status": "ok", "data": { ... } }`; err
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v3/file` | Multipart upload (file field is always `file`); optional `filename`, `path`, `metadata` (JSON string), `retentionExempt`. |
+| `POST` | `/api/v3/file` | Multipart upload (file field `file`; also accepts `image`/`video`/`audio` for FiveM clients like screenshot-basic); optional `filename`, `path`, `metadata` (JSON string), `retentionExempt`. |
 | `POST` | `/api/v3/file/base64` | JSON upload `{ base64, filename?, path?, metadata?, retentionExempt? }` (accepts data-URI). |
 | `GET` | `/api/v3/file` | List files: `page` (1), `limit` (50, max 100), `type`, `path`. |
 | `GET` | `/api/v3/file/*` | Get a file by id or storage key. |
