@@ -1,5 +1,5 @@
 # Frontend
-FROM node:22-slim AS frontend
+FROM node:26-slim AS frontend
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
