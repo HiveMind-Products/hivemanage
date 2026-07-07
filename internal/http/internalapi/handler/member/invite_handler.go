@@ -30,15 +30,30 @@ func (h *handler) createInviteHandler(c echo.Context) error {
 		return cc.JSON(http.StatusUnauthorized, httputil.ErrorResponse("Not authenticated"))
 	}
 
+	// Resolve the caller's own authority so the service can reject invites that
+	// would grant a role/permissions beyond what the caller holds. Both checks
+	// fail closed (treated as non-admin / no permissions) on lookup error.
+	actorIsAdmin := h.isActorAdmin(cc, organizationID)
+	actorPermissions, err := h.authService.OrganizationPermissions(ctx, user.ID, organizationID)
+	if err != nil {
+		slog.Error("failed to resolve actor permissions", "err", err)
+		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create invite"))
+	}
+
 	invite, err := h.inviteService.Create(ctx, inviteservice.CreateParams{
-		OrganizationID:  organizationID,
-		Role:            req.Role,
-		Permissions:     req.Permissions,
-		DiscordUsername: req.DiscordUsername,
-		Email:           req.Email,
-		CreatedBy:       user.ID,
+		OrganizationID:   organizationID,
+		Role:             req.Role,
+		Permissions:      req.Permissions,
+		DiscordUsername:  req.DiscordUsername,
+		Email:            req.Email,
+		CreatedBy:        user.ID,
+		ActorIsAdmin:     actorIsAdmin,
+		ActorPermissions: actorPermissions,
 	})
 	if err != nil {
+		if errors.Is(err, inviteservice.ErrEscalation) {
+			return cc.JSON(http.StatusForbidden, httputil.ErrorResponse(err.Error()))
+		}
 		slog.Error("failed to create invite", "err", err)
 		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create invite"))
 	}

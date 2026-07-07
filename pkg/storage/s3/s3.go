@@ -61,8 +61,37 @@ func (r *Storage) PublicURL(key string) string {
 	return fmt.Sprintf("%s/%s/%s", strings.TrimRight(r.endpoint, "/"), r.bucket, key)
 }
 
+// safeStorageContentType returns the content type to store the object under and
+// whether it had to be neutralized. A browser may execute some content types as
+// active content (script / markup) when served inline. Objects in this bucket
+// are frequently served directly from the origin/CDN, so such types are stored
+// as generic downloads and cannot execute (stored XSS / content hosting).
+func safeStorageContentType(contentType string) (string, bool) {
+	base := strings.ToLower(strings.TrimSpace(contentType))
+	if i := strings.IndexByte(base, ';'); i >= 0 {
+		base = strings.TrimSpace(base[:i])
+	}
+	switch base {
+	case "image/svg+xml", "text/html", "application/xhtml+xml",
+		"text/xml", "application/xml", "text/xml-external-parsed-entity":
+		return "application/octet-stream", true
+	}
+	return contentType, false
+}
+
 func (r *Storage) UploadFile(ctx context.Context, file io.Reader, key, contentType string) error {
-	_, err := r.client.PutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(r.bucket), Key: aws.String(key), Body: file, ContentType: aws.String(contentType)})
+	storeType, neutralized := safeStorageContentType(contentType)
+	input := &s3.PutObjectInput{
+		Bucket:      aws.String(r.bucket),
+		Key:         aws.String(key),
+		Body:        file,
+		ContentType: aws.String(storeType),
+	}
+	if neutralized {
+		// Force download instead of inline rendering for active-content types.
+		input.ContentDisposition = aws.String("attachment")
+	}
+	_, err := r.client.PutObject(ctx, input)
 	if err != nil {
 		return fmt.Errorf("upload file to storage: %w", err)
 	}

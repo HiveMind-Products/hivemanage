@@ -39,7 +39,8 @@ jobs:
             LITE_VERSION=hivemanage-dev
 
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@master
+        # Pinned to an immutable release tag (not @master); Dependabot bumps it.
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: ${{ env.dockerImage }}:latest
           format: table
@@ -50,7 +51,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.17.1
         # Informational: produce an SBOM artifact, do not fail the build on errors.
         continue-on-error: true
         with:

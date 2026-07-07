@@ -42,24 +42,23 @@ func NewService(db *bun.DB) *Service {
 // CreateAdminUser creates the initial admin user if none exists
 
 func (r *Service) CreateAdminUser() error {
-	var err error
 	ctx := context.Background()
 
-	user := new(database.User)
-	err = r.db.NewSelect().Model(user).Limit(1).Scan(ctx)
+	// Determine whether ANY admin already exists. Previously this inspected a
+	// single unordered row and only checked its IsAdmin flag, which — once
+	// regular users existed — could spuriously report "no admin" and provision a
+	// second admin account on restart. Query specifically for an admin instead.
+	adminExists, err := r.db.NewSelect().
+		Model((*database.User)(nil)).
+		Where("is_admin = ?", true).
+		Exists(ctx)
 	if err != nil {
-		// todo: create a database.selectError func
-		if errors.Is(err, sql.ErrNoRows) {
-			slog.Info("found no admin user; attempting to create one")
-		} else {
-			return err
-		}
+		return err
 	}
-
-	// it can only be one admin
-	if user.IsAdmin {
+	if adminExists {
 		return nil
 	}
+	slog.Info("found no admin user; attempting to create one")
 
 	adminPassword := os.Getenv("ADMIN_PASSWORD")
 	if adminPassword == "" {
@@ -490,6 +489,24 @@ func (r *Service) IsOrganizationAdmin(ctx context.Context, userID int64, organiz
 	return role == api.MemberRoleAdmin, nil
 }
 
+// OrganizationPermissions returns the caller's normalized permission set for an
+// organization. It returns an empty (nil) set if the user is not a member, so a
+// non-member is treated as having no permissions to grant.
+func (r *Service) OrganizationPermissions(ctx context.Context, userID int64, organizationID string) (api.MemberPermissions, error) {
+	member, err := organizationquery.FindMemberByUser(ctx, r.db, organizationID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	_, normalized, err := permissions.Normalize(member.Role, member.Permissions)
+	if err != nil {
+		return permissions.Preset(permissions.RoleOrViewer(member.Role)), nil
+	}
+	return normalized, nil
+}
+
 func (r *Service) HasOrganizationPermission(ctx context.Context, userID int64, organizationID string, module string, action string) (bool, error) {
 	member, err := organizationquery.FindMemberByUser(ctx, r.db, organizationID, userID)
 	if err != nil {
@@ -521,6 +538,15 @@ func (r *Service) CreateSessionCookie(sessionID string) *http.Cookie {
 		Path:     "/",
 		Expires:  time.Now().Add(auth.SessionDuration),
 	}
+}
+
+// CSRFTokenForSession derives the CSRF token for a session by HMAC-ing the
+// session ID with the server secret. Binding the token to the session (instead
+// of using an independent random value) means a planted or forged CSRF cookie
+// cannot be made valid without knowledge of the HttpOnly session ID — hardening
+// the double-submit pattern against cookie-fixation.
+func (r *Service) CSRFTokenForSession(sessionID string) string {
+	return crypt.ComputeHMAC(os.Getenv("API_TOKEN_HMAC_SECRET"), "csrf:"+sessionID)
 }
 
 func (r *Service) CreateCSRFCookie(token string) *http.Cookie {

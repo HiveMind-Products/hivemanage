@@ -17,13 +17,15 @@ var WhitelistedImageMIME = []string{
 	"image/gif",
 }
 
+// Note: application/octet-stream is intentionally NOT whitelisted. mimetype
+// returns it for any content it cannot classify, so allowing it would let the
+// whitelist be bypassed by arbitrary/unrecognized binaries.
 var WhitelistedVideoMIME = []string{
 	"video/ogg",
 	"video/mp4",
 	"video/mpeg",
 	"video/webm",
 	"video/quicktime",
-	"application/octet-stream",
 }
 
 var WhitelistedAudioMIME = []string{
@@ -33,7 +35,6 @@ var WhitelistedAudioMIME = []string{
 	"audio/webm",
 	"audio/wav",
 	"video/webm",
-	"application/octet-stream",
 }
 
 func ValidateMime(fileKey string, whitelistedTypes []string) echo.MiddlewareFunc {

@@ -301,7 +301,36 @@ func validateRequiredConfig() error {
 	if strings.Contains(secret, "<") || secret == "changeme" || secret == "secret" {
 		return errors.New("API_TOKEN_HMAC_SECRET still looks like a placeholder; set a real random value")
 	}
+
+	// Outside of dev, refuse to boot with the shipped placeholder/dev credentials
+	// so a deployment cannot silently run with a guessable admin password or the
+	// default datastore passwords from the templates/compose files.
+	if !strings.EqualFold(os.Getenv("ENV"), "dev") {
+		if isWeakDefaultSecret(os.Getenv("ADMIN_PASSWORD")) {
+			return errors.New("ADMIN_PASSWORD is missing or uses a known default value; set a strong password when ENV is not 'dev'")
+		}
+		if strings.Contains(os.Getenv("DSN"), ":root@") {
+			return errors.New("DSN uses the default 'root' database password; change it when ENV is not 'dev'")
+		}
+		if os.Getenv("AWS_ACCESS_KEY_ID") == "minioadmin" || os.Getenv("AWS_SECRET_ACCESS_KEY") == "minioadmin123" {
+			return errors.New("storage credentials use the default minioadmin values; change them when ENV is not 'dev'")
+		}
+		if os.Getenv("CLICKHOUSE_PASSWORD") == "password" {
+			return errors.New("CLICKHOUSE_PASSWORD uses the default value; change it when ENV is not 'dev'")
+		}
+	}
 	return nil
+}
+
+// isWeakDefaultSecret reports whether a secret is empty or one of the well-known
+// placeholder/default values shipped in the templates.
+func isWeakDefaultSecret(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "password", "changeme", "admin", "secret", "root":
+		return true
+	default:
+		return false
+	}
 }
 
 func syncOTelConfigFromViper() {

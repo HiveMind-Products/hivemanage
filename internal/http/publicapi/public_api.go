@@ -1,6 +1,9 @@
 package publicapi
 
 import (
+	"os"
+	"strings"
+
 	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/file"
 	"github.com/fivemanage/lite/internal/service/log"
@@ -16,7 +19,11 @@ func Add(group *echo.Group,
 	tokenService *token.Service,
 	logService *log.Service,
 ) {
-	group.GET("/swagger/*", echoSwagger.WrapHandler)
+	// The Swagger UI/spec exposes the full API surface; only serve it in dev so it
+	// is not world-readable in production. Set SWAGGER_ENABLED=true to force-enable.
+	if strings.EqualFold(os.Getenv("ENV"), "dev") || strings.EqualFold(os.Getenv("SWAGGER_ENABLED"), "true") {
+		group.GET("/swagger/*", echoSwagger.WrapHandler)
+	}
 
 	// Registered BEFORE TokenAuth: the presigned upload route authenticates via
 	// its signed token in the path, not via an API key.

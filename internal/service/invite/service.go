@@ -21,6 +21,11 @@ var (
 	// ErrInviteWrongDiscord is returned when the logged-in Discord account does not
 	// match the account the invite was issued for.
 	ErrInviteWrongDiscord = errors.New("this invite is for a different Discord account")
+	// ErrEscalation is returned when a non-admin actor attempts to issue an invite
+	// granting the admin role, or permissions broader than the actor's own. This
+	// mirrors the guard on direct member creation and closes the privilege-
+	// escalation path where team:write could otherwise mint an admin.
+	ErrEscalation = errors.New("cannot invite with a role or permissions beyond your own")
 )
 
 type Service struct {
@@ -41,6 +46,12 @@ type CreateParams struct {
 	Email           string
 	CreatedBy       int64
 	TTL             time.Duration
+	// ActorIsAdmin and ActorPermissions describe the caller's own authority in
+	// the organization and are used to prevent privilege escalation: a non-admin
+	// may neither invite an admin nor grant permissions they do not themselves
+	// hold.
+	ActorIsAdmin     bool
+	ActorPermissions api.MemberPermissions
 }
 
 // Create issues a new invite and returns it. The invite ID is an opaque,
@@ -49,6 +60,17 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (*database.Invite,
 	role, perms, err := permissions.Normalize(p.Role, p.Permissions)
 	if err != nil {
 		return nil, err
+	}
+
+	// Privilege-escalation guard: an admin can grant anything, but a non-admin
+	// may not mint an admin invite nor grant permissions beyond their own scope.
+	if !p.ActorIsAdmin {
+		if role == api.MemberRoleAdmin {
+			return nil, ErrEscalation
+		}
+		if !permissions.IsSubset(perms, p.ActorPermissions) {
+			return nil, ErrEscalation
+		}
 	}
 
 	token, err := crypt.GenerateSessionID()

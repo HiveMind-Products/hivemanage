@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mime/multipart"
 	"strings"
 
@@ -31,6 +32,13 @@ func (memoryFile) Close() error { return nil }
 // CreateFileBase64V3 decodes a (optionally data-URI prefixed) base64 payload and
 // stores it, returning the V3 file item.
 func (s *Service) CreateFileBase64V3(ctx context.Context, organizationID string, req api.UploadFileBase64Request) (*api.FileItemV3, error) {
+	// Reject oversized payloads BEFORE decoding. A base64 string of length n
+	// decodes to at most ~3n/4 bytes; checking the encoded length first prevents
+	// a client from forcing a large heap allocation (the request body limit alone
+	// would otherwise allow ~525MB to be buffered per request).
+	if int64(base64.StdEncoding.DecodedLen(len(req.Base64))) > MaxUploadSize {
+		return nil, UploadStorageError{ErrorMsg: fmt.Sprintf("file size must not exceed %d bytes", MaxUploadSize)}
+	}
 	raw, err := DecodeBase64Payload(req.Base64)
 	if err != nil {
 		return nil, UploadStorageError{ErrorMsg: err.Error()}

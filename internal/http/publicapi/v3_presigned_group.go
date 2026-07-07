@@ -2,6 +2,8 @@ package publicapi
 
 import (
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/fivemanage/lite/internal/auth"
@@ -71,8 +73,9 @@ func (h *v3PresignedHandler) upload(c echo.Context) error {
 	if err != nil {
 		return v3Error(c, http.StatusBadRequest, "invalid metadata: "+err.Error())
 	}
-	// The token may pin a folder; a form-supplied path overrides it.
-	if params.Path == "" {
+	// If the presigned token pinned a folder, enforce it and ignore any
+	// form-supplied path so the uploader cannot widen the token's scope.
+	if tokenPath != "" {
 		params.Path = tokenPath
 	}
 
@@ -83,7 +86,13 @@ func (h *v3PresignedHandler) upload(c echo.Context) error {
 	return c.JSON(http.StatusOK, httputil.Response(uploadResult(item)))
 }
 
-// publicBaseURL returns scheme://host honoring proxy-forwarded scheme.
+// publicBaseURL returns the base URL used to build the presigned upload link.
+// It prefers the operator-configured PUBLIC_BASE_URL so the returned URL cannot
+// be poisoned via a client-controlled Host header; it falls back to the request
+// scheme/host when unset.
 func publicBaseURL(c echo.Context) string {
+	if base := strings.TrimRight(os.Getenv("PUBLIC_BASE_URL"), "/"); base != "" {
+		return base
+	}
 	return c.Scheme() + "://" + c.Request().Host
 }

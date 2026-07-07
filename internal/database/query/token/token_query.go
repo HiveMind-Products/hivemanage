@@ -49,3 +49,15 @@ func Delete(ctx context.Context, db *bun.DB, organizationID string, tokenID int6
 
 	return nil
 }
+
+// DeleteByUser revokes all of a user's API tokens within an organization. It is
+// used when a member is removed so their tokens cannot retain org data access
+// after offboarding.
+func DeleteByUser(ctx context.Context, db bun.IDB, organizationID string, userID int64) error {
+	_, err := db.NewDelete().
+		Model((*database.Token)(nil)).
+		Where("organization_id = ?", organizationID).
+		Where("user_id = ?", userID).
+		Exec(ctx)
+	return err
+}

@@ -50,9 +50,9 @@ func (b *Builder) buildCondition(filter api.DatasetFilter) string {
 		}
 		switch filter.Operator {
 		case "exists":
-			return fmt.Sprintf("mapContains(Attributes, '%s')", filter.Field)
+			return fmt.Sprintf("mapContains(Attributes, '%s')", escapeLiteral(filter.Field))
 		case "not-exists":
-			return fmt.Sprintf("NOT mapContains(Attributes, '%s')", filter.Field)
+			return fmt.Sprintf("NOT mapContains(Attributes, '%s')", escapeLiteral(filter.Field))
 		}
 		if filter.Value == nil {
 			b.err = ErrInvalidFilter
@@ -112,7 +112,18 @@ func (b *Builder) fieldExpr(field string) (string, bool) {
 	if _, ok := topLevelFields[field]; ok {
 		return field, true
 	}
-	return fmt.Sprintf("Attributes['%s']", field), true
+	// ClickHouse map keys/identifiers cannot be bound as query parameters, so the
+	// field name is interpolated. fieldPattern already forbids quotes; escaping
+	// here is defense-in-depth so a future loosening of the pattern cannot open a
+	// SQL-injection break-out via a crafted attribute key.
+	return fmt.Sprintf("Attributes['%s']", escapeLiteral(field)), true
+}
+
+// escapeLiteral escapes a value for safe inclusion inside a single-quoted
+// ClickHouse string literal by doubling backslashes and single quotes.
+func escapeLiteral(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	return strings.ReplaceAll(s, `'`, `\'`)
 }
 func (b *Builder) WithDateRange(startTime, endTime time.Time) *Builder {
 	b.query.Where(b.query.Between("Timestamp", startTime, endTime))

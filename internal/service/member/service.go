@@ -10,6 +10,7 @@ import (
 	"github.com/fivemanage/lite/internal/crypt"
 	"github.com/fivemanage/lite/internal/database"
 	organizationquery "github.com/fivemanage/lite/internal/database/query/organization"
+	tokenquery "github.com/fivemanage/lite/internal/database/query/token"
 	"github.com/fivemanage/lite/internal/permissions"
 	"github.com/uptrace/bun"
 )
@@ -152,6 +153,14 @@ func (s *Service) RemoveMember(ctx context.Context, organizationID string, membe
 		if err := s.ensureNotLastAdmin(ctx, organizationID); err != nil {
 			return err
 		}
+	}
+	// Revoke the member's API tokens BEFORE removing the membership so the
+	// operation is safely retryable: token deletion is idempotent and, if the
+	// membership delete later fails, FindMember still resolves on retry. This
+	// stops a removed member from retaining org data access (upload/list/read/
+	// delete, log ingest) through a still-valid token after offboarding.
+	if err := tokenquery.DeleteByUser(ctx, s.db, organizationID, member.UserID); err != nil {
+		return err
 	}
 	return organizationquery.DeleteMember(ctx, s.db, memberID, organizationID)
 }

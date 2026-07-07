@@ -13,12 +13,15 @@ type handler struct{ organizationService *organization.Service }
 func RegisterRoutes(group *echo.Group, organizationService *organization.Service, authService *auth.Service) {
 	h := handler{organizationService: organizationService}
 	readOverview := middleware.OrganizationPermission(authService, api.PermissionModuleOverview, api.PermissionActionRead)
-	writeTeam := middleware.OrganizationPermission(authService, api.PermissionModuleTeam, api.PermissionActionWrite)
+	adminOnly := middleware.OrganizationAdmin(authService)
 	group.POST("/organization", h.createOrganizationHandler)
 	group.GET("/organization", h.listOrganizationsHandler)
-	group.GET("/organization/:organizationId", h.getOrganizationHandler)
-	group.PATCH("/organization/:organizationId", h.updateOrganizationHandler, writeTeam)
-	group.DELETE("/organization/:organizationId", h.deleteOrganizationHandler, writeTeam)
+	// Renaming and permanently deleting an organization are owner-level,
+	// destructive actions — gate them on the admin role, not the delegable
+	// team:write permission.
+	group.GET("/organization/:organizationId", h.getOrganizationHandler, readOverview)
+	group.PATCH("/organization/:organizationId", h.updateOrganizationHandler, adminOnly)
+	group.DELETE("/organization/:organizationId", h.deleteOrganizationHandler, adminOnly)
 	group.GET("/organization/:organizationId/stats", h.getOrganizationStatsHandler, readOverview)
 	group.GET("/organization/:organizationId/usage", h.getOrganizationUsageHandler, readOverview)
 }

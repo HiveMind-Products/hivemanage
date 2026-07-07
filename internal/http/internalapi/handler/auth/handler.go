@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/fivemanage/lite/api"
@@ -39,10 +41,7 @@ func (r *handler) getSessionHandler(c echo.Context) error {
 		return cc.JSON(http.StatusUnauthorized, httputil.ErrorResponse("Invalid session"))
 	}
 
-	csrfToken, err := crypt.GenerateSessionID()
-	if err != nil {
-		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
-	}
+	csrfToken := r.authService.CSRFTokenForSession(sessionCookie.Value)
 	cc.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
 
 	return cc.JSON(http.StatusOK, httputil.Response(user))
@@ -70,23 +69,17 @@ func (r *handler) loginHandler(c echo.Context) error {
 
 	sessionID, err := r.authService.LoginUser(ctx, login.Username, login.Password)
 	if err != nil {
-		// this might not be the way we want to handle these errors
-		// might be better to send some sort of code instead that we can map on the client?
-		// as this could get veryyy long some places
-		// errors.As() is also an option
 		if errors.Is(err, auth.ErrUserCredentials{}) {
 			return c.JSON(http.StatusForbidden, httputil.ErrorResponse("The username or password is wrong. Please try again"))
 		}
-		// this also bad
-		return c.JSON(http.StatusForbidden, httputil.ErrorResponse(err.Error()))
-
+		// Any other error is an internal failure — log it, but return a generic
+		// message so DB/internal details are not disclosed to the client.
+		slog.Error("login failed", "err", err)
+		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Login failed, please try again later"))
 	}
 
 	sessionCookie := r.authService.CreateSessionCookie(sessionID)
-	csrfToken, err := crypt.GenerateSessionID()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
-	}
+	csrfToken := r.authService.CSRFTokenForSession(sessionID)
 
 	c.SetCookie(sessionCookie)
 	c.SetCookie(r.authService.CreateCSRFCookie(csrfToken))
@@ -181,7 +174,8 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 	}
 
 	stateCookie, err := cc.Cookie(discordStateCookie)
-	if err != nil || stateCookie.Value == "" || stateCookie.Value != state {
+	if err != nil || stateCookie.Value == "" ||
+		subtle.ConstantTimeCompare([]byte(stateCookie.Value), []byte(state)) != 1 {
 		return cc.JSON(http.StatusBadRequest, httputil.ErrorResponse("Invalid OAuth state"))
 	}
 	cc.SetCookie(&http.Cookie{Name: discordStateCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
@@ -196,10 +190,7 @@ func (r *handler) discordCallbackHandler(c echo.Context) error {
 		return cc.JSON(http.StatusUnauthorized, httputil.ErrorResponse("Discord login failed"))
 	}
 
-	csrfToken, err := crypt.GenerateSessionID()
-	if err != nil {
-		return cc.JSON(http.StatusInternalServerError, httputil.ErrorResponse("Failed to create csrf token"))
-	}
+	csrfToken := r.authService.CSRFTokenForSession(sessionID)
 
 	cc.SetCookie(r.authService.CreateSessionCookie(sessionID))
 	cc.SetCookie(r.authService.CreateCSRFCookie(csrfToken))

@@ -107,6 +107,24 @@ func Can(role string, memberPermissions api.MemberPermissions, module string, ac
 	return access.Read
 }
 
+// IsSubset reports whether every permission granted in `granted` is also held
+// by `actor`. It stops a non-admin from delegating (via an invite or member
+// creation) access broader than their own — preventing horizontal/vertical
+// privilege escalation.
+func IsSubset(granted, actor api.MemberPermissions) bool {
+	for _, module := range Modules {
+		g := granted[module]
+		a := actor[module]
+		if g.Read && !a.Read {
+			return false
+		}
+		if g.Write && !a.Write {
+			return false
+		}
+	}
+	return true
+}
+
 func all() api.MemberPermissions {
 	perms := make(api.MemberPermissions, len(Modules))
 	for _, module := range Modules {
