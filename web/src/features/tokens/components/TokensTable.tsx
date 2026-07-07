@@ -10,7 +10,16 @@ import { useTokens } from "../api/useTokens";
 import { DeleteTokenDialog } from "./DeleteTokenDialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CreateTokenDialog } from "./CreateTokenDialog";
+import { Badge } from "@/components/ui/badge";
 import { KeyRound } from "lucide-react";
+
+function formatExpiry(expiresAt?: string | null): string {
+  if (!expiresAt) return "Never";
+  const date = new Date(expiresAt);
+  if (Number.isNaN(date.getTime())) return "Never";
+  const expired = date.getTime() < Date.now();
+  return `${expired ? "Expired " : ""}${date.toLocaleDateString()}`;
+}
 
 interface TokensTableProps {
   organizationId: string;
@@ -40,7 +49,10 @@ export function TokensTable({ organizationId, canWrite }: TokensTableProps) {
               Identifier
             </TableHead>
             <TableHead className="h-10 font-medium text-muted-foreground">
-              Type
+              Scopes
+            </TableHead>
+            <TableHead className="h-10 font-medium text-muted-foreground">
+              Expires
             </TableHead>
             {canWrite && (
               <TableHead className="h-10 w-16 text-right font-medium text-muted-foreground">
@@ -54,9 +66,20 @@ export function TokensTable({ organizationId, canWrite }: TokensTableProps) {
             <TableRow key={token.id} className="transition-colors hover:bg-accent/40">
               <TableCell className="font-medium">{token.identifier}</TableCell>
               <TableCell>
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-                  {token.type}
-                </code>
+                {token.scopes && token.scopes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {token.scopes.map((scope) => (
+                      <Badge key={scope} variant="secondary" className="font-mono text-xs">
+                        {scope}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Full access</span>
+                )}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {formatExpiry(token.expiresAt)}
               </TableCell>
               {canWrite && (
                 <TableCell className="text-right">

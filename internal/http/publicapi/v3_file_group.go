@@ -7,6 +7,7 @@ import (
 	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/http/httputil"
+	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/file"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -19,12 +20,14 @@ type v3FileHandler struct{ fileService *file.Service }
 // it must bypass API-key auth.
 func registerV3FileApi(group *echo.Group, fileService *file.Service) {
 	h := &v3FileHandler{fileService: fileService}
-	group.POST("/v3/file", h.upload, echoMiddleware.BodyLimit("500M"))
+	storageWrite := middleware.RequireTokenScope(api.PermissionModuleStorage, api.PermissionActionWrite)
+	storageRead := middleware.RequireTokenScope(api.PermissionModuleStorage, api.PermissionActionRead)
+	group.POST("/v3/file", h.upload, echoMiddleware.BodyLimit("500M"), storageWrite)
 	// base64 bodies inflate ~33%, so allow extra headroom over the 500M file cap.
-	group.POST("/v3/file/base64", h.uploadBase64, echoMiddleware.BodyLimit("700M"))
-	group.GET("/v3/file", h.list)
-	group.GET("/v3/file/*", h.get)
-	group.DELETE("/v3/file/*", h.delete)
+	group.POST("/v3/file/base64", h.uploadBase64, echoMiddleware.BodyLimit("700M"), storageWrite)
+	group.GET("/v3/file", h.list, storageRead)
+	group.GET("/v3/file/*", h.get, storageRead)
+	group.DELETE("/v3/file/*", h.delete, storageWrite)
 }
 
 func (h *v3FileHandler) upload(c echo.Context) error {

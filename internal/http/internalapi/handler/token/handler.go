@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/fivemanage/lite/internal/http/appctx"
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/validator"
+	"github.com/fivemanage/lite/internal/permissions"
+	tokenservice "github.com/fivemanage/lite/internal/service/token"
 	"github.com/labstack/echo/v4"
 )
 
@@ -39,6 +42,10 @@ func (r *handler) createTokenHandler(c echo.Context) error {
 	user := cc.User()
 	apiToken, err := r.tokenService.CreateToken(ctx, &data, user.ID)
 	if err != nil {
+		var invalidScope *permissions.InvalidScopeError
+		if errors.As(err, &invalidScope) || errors.Is(err, tokenservice.ErrExpiryInPast) {
+			return cc.JSON(400, httputil.ErrorResponse(err.Error()))
+		}
 		slog.Error("failed to create token", "organization_id", organizationID, "err", err)
 		return cc.JSON(500, httputil.ErrorResponse("Failed to create token"))
 	}

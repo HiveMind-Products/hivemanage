@@ -72,7 +72,14 @@ type Token struct {
 	User           *User         `bun:"rel:belongs-to,join:user_id=id"`
 	OrganizationID string        `bun:"organization_id"`
 	Organization   *Organization `bun:"rel:belongs-to,join:organization_id=id"`
-	CreatedAt      time.Time     `bun:"created_at,nullzero,notnull,default:current_timestamp"`
+	// Scopes limits what the token may do, as "module:action" strings (e.g.
+	// "storage:write"). A nil/empty list means full access — preserving the
+	// behaviour of tokens created before scoping existed.
+	Scopes []string `bun:"scopes,type:jsonb,nullzero"`
+	// ExpiresAt, when set, is the instant after which the token is rejected. Nil
+	// means the token never expires.
+	ExpiresAt *time.Time `bun:"expires_at,nullzero"`
+	CreatedAt time.Time  `bun:"created_at,nullzero,notnull,default:current_timestamp"`
 }
 
 // nanoid to keep the ID more url friendly

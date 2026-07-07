@@ -16,13 +16,21 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { type TokenParams, tokenSchema } from "@/typings/token";
+import { type TokenParams, tokenSchema, TOKEN_SCOPES } from "@/typings/token";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useCreateToken } from "../api/useCreateToken";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AlertTriangle, Check, Copy, KeyRound } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QueryKeys } from "@/typings/query";
@@ -30,9 +38,26 @@ import { useParams } from "react-router";
 import { Params } from "@/typings/router";
 import { useCopyToClipboard } from "@/hooks/use-copy";
 
+// Expiry presets. "never" omits expiresAt so the token does not expire.
+const EXPIRY_OPTIONS = [
+  { value: "never", label: "Never" },
+  { value: "7", label: "7 days" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "365", label: "1 year" },
+] as const;
+
+function expiryToISO(preset: string): string | undefined {
+  if (preset === "never") return undefined;
+  const days = Number(preset);
+  if (!Number.isFinite(days) || days <= 0) return undefined;
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export function CreateTokenDialog() {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [expiry, setExpiry] = useState<string>("never");
   const { copied, copy } = useCopyToClipboard();
 
   const { mutateAsync, reset, data, isSuccess } = useCreateToken();
@@ -40,6 +65,7 @@ export function CreateTokenDialog() {
     defaultValues: {
       type: "media",
       identifier: "",
+      scopes: [],
     },
     resolver: zodResolver(tokenSchema),
   });
@@ -47,9 +73,13 @@ export function CreateTokenDialog() {
   const params = useParams<Params>();
   const queryClient = useQueryClient();
 
-  function handleOnSubmit(data: TokenParams) {
+  function handleOnSubmit(values: TokenParams) {
+    const payload: TokenParams = {
+      ...values,
+      expiresAt: expiryToISO(expiry),
+    };
     startTransition(async () => {
-      await mutateAsync(data);
+      await mutateAsync(payload);
 
       startTransition(() => {
         queryClient.invalidateQueries({ queryKey: [QueryKeys.Tokens, params.organizationId] });
@@ -59,6 +89,7 @@ export function CreateTokenDialog() {
 
   function resetForm() {
     form.reset();
+    setExpiry("never");
     reset();
   }
 
@@ -151,6 +182,67 @@ export function CreateTokenDialog() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="scopes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scopes</FormLabel>
+                    <div className="space-y-2 rounded-md border p-3">
+                      {TOKEN_SCOPES.map((scope) => {
+                        const checked = field.value?.includes(scope.value);
+                        return (
+                          <label
+                            key={scope.value}
+                            className="flex items-center gap-2.5 text-sm"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(isChecked) => {
+                                const current = field.value ?? [];
+                                field.onChange(
+                                  isChecked
+                                    ? [...current, scope.value]
+                                    : current.filter((s) => s !== scope.value),
+                                );
+                              }}
+                            />
+                            <span>{scope.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <FormDescription>
+                      Leave all unchecked for full access. Select scopes to grant
+                      least privilege — a token can only do what it's scoped for.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormItem>
+                <FormLabel>Expires</FormLabel>
+                <Select value={expiry} onValueChange={setExpiry}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {EXPIRY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  An expiring token stops working automatically — recommended for
+                  temporary or third-party access.
+                </FormDescription>
+              </FormItem>
 
               <DialogFooter className="pt-2">
                 <Button type="submit" disabled={isPending} className="w-full">

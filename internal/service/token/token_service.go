@@ -2,20 +2,32 @@ package token
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/crypt"
 	"github.com/fivemanage/lite/internal/database"
 	tokenquery "github.com/fivemanage/lite/internal/database/query/token"
+	"github.com/fivemanage/lite/internal/permissions"
 	"github.com/uptrace/bun"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 var tracer = otel.Tracer("github.com/fivemanage/lite/internal/service/token")
+
+// ErrTokenExpired is returned by GetToken when a token exists but its expiry has
+// passed. It lets the caller respond with 401 without leaking whether the token
+// was ever valid.
+var ErrTokenExpired = errors.New("token expired")
+
+// ErrExpiryInPast is returned by CreateToken when the requested expiry is not in
+// the future.
+var ErrExpiryInPast = errors.New("token expiry must be in the future")
 
 type Service struct {
 	db *bun.DB
@@ -37,10 +49,22 @@ func (r *Service) GetToken(ctx context.Context, apiToken string) (*database.Toke
 		return nil, err
 	}
 
+	if token.ExpiresAt != nil && time.Now().After(*token.ExpiresAt) {
+		return nil, ErrTokenExpired
+	}
+
 	return token, nil
 }
 
 func (r *Service) CreateToken(ctx context.Context, data *api.CreateTokenRequest, userID int64) (string, error) {
+	scopes, err := permissions.NormalizeTokenScopes(data.Scopes)
+	if err != nil {
+		return "", err
+	}
+	if data.ExpiresAt != nil && !data.ExpiresAt.After(time.Now()) {
+		return "", ErrExpiryInPast
+	}
+
 	apiToken, err := crypt.GenerateApiKey()
 	if err != nil {
 		return "", err
@@ -54,6 +78,8 @@ func (r *Service) CreateToken(ctx context.Context, data *api.CreateTokenRequest,
 		Identifier:     data.Identifier,
 		TokenHash:      tokenHash,
 		UserID:         int(userID),
+		Scopes:         scopes,
+		ExpiresAt:      data.ExpiresAt,
 	}
 
 	err = tokenquery.Create(ctx, r.db, token)
@@ -82,6 +108,8 @@ func (r *Service) ListTokens(ctx context.Context, organizationID string) ([]*api
 		response = append(response, &api.ListTokensResponse{
 			ID:         token.ID,
 			Identifier: token.Identifier,
+			Scopes:     token.Scopes,
+			ExpiresAt:  token.ExpiresAt,
 		})
 	}
 

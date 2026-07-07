@@ -10,6 +10,7 @@ import (
 	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/clickhouse"
+	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/log"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -19,7 +20,8 @@ type v3LogsHandler struct{ logService *log.Service }
 
 func registerV3LogsApi(group *echo.Group, logService *log.Service) {
 	h := &v3LogsHandler{logService: logService}
-	group.POST("/v3/logs", h.submit, echoMiddleware.BodyLimit("2M"))
+	logsWrite := middleware.RequireTokenScope(api.PermissionModuleLogs, api.PermissionActionWrite)
+	group.POST("/v3/logs", h.submit, echoMiddleware.BodyLimit("2M"), logsWrite)
 }
 
 // submit ingests a batch of logs. The root body MUST be a JSON array; a single

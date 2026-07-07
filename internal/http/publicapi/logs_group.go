@@ -11,6 +11,7 @@ import (
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/clickhouse"
 	"github.com/fivemanage/lite/internal/http/httputil"
+	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/log"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -23,7 +24,8 @@ import (
 // object at the root and wraps it into a one-element batch.
 func registerLogsApi(group *echo.Group, logService *log.Service) {
 	h := &logsHandler{logService: logService}
-	group.POST("/logs", h.submitLogs, echoMiddleware.BodyLimit("2M"))
+	logsWrite := middleware.RequireTokenScope(api.PermissionModuleLogs, api.PermissionActionWrite)
+	group.POST("/logs", h.submitLogs, echoMiddleware.BodyLimit("2M"), logsWrite)
 }
 
 type logsHandler struct{ logService *log.Service }

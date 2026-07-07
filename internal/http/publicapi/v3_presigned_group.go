@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/http/httputil"
+	"github.com/fivemanage/lite/internal/http/middleware"
 	"github.com/fivemanage/lite/internal/service/file"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -27,7 +29,8 @@ func registerV3PresignedUpload(group *echo.Group, fileService *file.Service) {
 // generation route.
 func registerV3PresignedGenerate(group *echo.Group, fileService *file.Service) {
 	h := &v3PresignedHandler{fileService: fileService}
-	group.GET("/v3/file/presigned-url", h.generate)
+	storageWrite := middleware.RequireTokenScope(api.PermissionModuleStorage, api.PermissionActionWrite)
+	group.GET("/v3/file/presigned-url", h.generate, storageWrite)
 }
 
 // generate issues a presigned upload URL. Optional query: expiresAt (unix

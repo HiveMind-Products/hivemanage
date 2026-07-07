@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/fivemanage/lite/api"
 	"github.com/fivemanage/lite/internal/auth"
 	"github.com/fivemanage/lite/internal/http/httputil"
 	"github.com/fivemanage/lite/internal/http/middleware"
@@ -40,8 +41,9 @@ func registerMediaApi(group *echo.Group, fileService *file.Service) {
 			return c.JSON(http.StatusOK, echo.Map{"url": item.URL})
 		}
 	}
-	group.POST("/image", handle("image"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("image", middleware.WhitelistedImageMIME))
-	group.POST("/video", handle("video"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("video", middleware.WhitelistedVideoMIME))
-	group.POST("/audio", handle("audio"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("audio", middleware.WhitelistedAudioMIME))
-	group.POST("/file", handle("file"), echoMiddleware.BodyLimit("500M"))
+	storageWrite := middleware.RequireTokenScope(api.PermissionModuleStorage, api.PermissionActionWrite)
+	group.POST("/image", handle("image"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("image", middleware.WhitelistedImageMIME), storageWrite)
+	group.POST("/video", handle("video"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("video", middleware.WhitelistedVideoMIME), storageWrite)
+	group.POST("/audio", handle("audio"), echoMiddleware.BodyLimit("500M"), middleware.ValidateMime("audio", middleware.WhitelistedAudioMIME), storageWrite)
+	group.POST("/file", handle("file"), echoMiddleware.BodyLimit("500M"), storageWrite)
 }
